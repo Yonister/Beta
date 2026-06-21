@@ -1127,7 +1127,8 @@ function renderSkillTreeModal(){
   container.innerHTML='';
   const ptDisplay=document.createElement('div');
   ptDisplay.style.cssText='text-align:center;color:#ffd700;font-weight:700;font-size:1em;margin-bottom:10px';
-  ptDisplay.textContent=`⭐ Skill Point: ${G.skillPoints}`;
+  // 💡 อธิบายว่า Level คืออะไร อ้างอิงยังไง
+  ptDisplay.innerHTML=`⭐ Skill Point: ${G.skillPoints}<div style="font-size:.72em;color:#a090d0;font-weight:normal;margin-top:6px;line-height:1.4;background:#1a1030;padding:6px;border-radius:8px;border:1px solid #3a1870;">สกิลแต่ละอันสามารถอัปเกรดซ้ำได้สูงสุด Lv.5 (MAX)<br><span style="color:#60cc88">ผลลัพธ์ของสกิลที่มีคำว่า <b>/lv</b> จะนำไปคูณทวีคูณกับเลเวลปัจจุบัน</span></div>`;
   container.appendChild(ptDisplay);
   Object.keys(tree).forEach(branchKey=>{
     const branch=tree[branchKey];
@@ -1152,7 +1153,13 @@ function renderSkillTreeModal(){
       const costOrMax=isMax
         ? `<span style="background:#2a1a00;color:#ff8844;border:1px solid #cc4400;border-radius:6px;padding:1px 6px;font-size:.78em;font-weight:700">MAX</span>`
         : `<span style="background:#2a1a00;color:#ffd700;border:1px solid #cc8800;border-radius:6px;padding:1px 6px;font-size:.78em;font-weight:700">${nextCost}⭐</span>`;
-      div.innerHTML=`<div style="min-width:46px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px">${costOrMax}<div>${dots}</div></div><div style="flex:1"><div style="font-weight:700;font-size:.85em;color:${level>0?'#ffd700':'#fff'}">${skill.name}${level>0?` (Lv${level})`:''}</div><div style="font-size:.72em;color:#9070b8">${skill.desc}</div></div>`;
+      
+      // 💡 อธิบายผลลัพธ์ปัจจุบันในบรรทัดคำอธิบายให้ชัดเจนขึ้น
+      let activeEff = level > 0 
+        ? `<div style="color:#60cc88;margin-top:3px;font-weight:700;">✅ ปัจจุบัน: Lv.${level} (ความสามารถถูกนำไป ×${level})</div>` 
+        : `<div style="color:#888;margin-top:3px;">❌ ยังไม่ได้อัปเกรด</div>`;
+
+      div.innerHTML=`<div style="min-width:46px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px">${costOrMax}<div>${dots}</div></div><div style="flex:1"><div style="font-weight:700;font-size:.85em;color:${level>0?'#ffd700':'#fff'}">${skill.name}${level>0?` (Lv${level})`:''}</div><div style="font-size:.72em;color:#9070b8;line-height:1.4">${skill.desc}${activeEff}</div></div>`;
       if(!isMax&&canAfford){
         div.style.cursor='pointer';div.style.touchAction='manipulation';
         tap(div,()=>{
