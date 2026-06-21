@@ -1343,7 +1343,31 @@ function cardEl(card,opts={}){
   const elementBadge=card.element?`<div style="position:absolute;top:5px;right:5px;font-size:.9em;filter:drop-shadow(0 0 2px #000)">${ELEMENT_ICON[card.element]}</div>`:'';
   const weakBadge=el.classList.contains('weak-hit')?`<div style="position:absolute;bottom:24px;right:4px;font-size:.85em;filter:drop-shadow(0 0 3px #44ff44)">💥</div>`:'';
   const goldBadge=card.goldCost?`<div style="position:absolute;top:${card.element?'20px':'5px'};right:4px;background:#2a1a00;border:1px solid #ffc844;border-radius:5px;padding:0px 4px;font-size:.5em;color:#ffc844;font-weight:700;white-space:nowrap">-${card.goldCost}💰</div>`:'';
-  el.innerHTML=`<div class="cc">${card.cost}</div>${elementBadge}${weakBadge}${goldBadge}<div class="ci">${ICONS[card.type]||'?'}</div><div class="cn">${isLeg?'★ ':''}${card.upgraded?card.name+'✦':card.name}</div><div class="ct">${TYPE_TH[card.type]||card.type}</div><div class="cdesc">${card.desc}</div><div style="text-align:center;margin-top:1px">${badges}</div><div class="crb r${card.rarity}"></div>`;
+  
+  // 💎 เพิ่มสัญลักษณ์การ์ดที่บวกมานา
+  const manaBadge=card.manaAdd?`<div style="position:absolute;top:28px;left:4px;background:#1e003b;border:1px solid #aa44ff;border-radius:4px;padding:1px 4px;font-size:.55em;color:#dd88ff;font-weight:700;z-index:2;box-shadow:0 1px 3px rgba(0,0,0,0.5)">+${card.manaAdd}💎</div>`:'';
+
+  el.innerHTML=`<div class="cc">${card.cost}</div>${manaBadge}${elementBadge}${weakBadge}${goldBadge}<div class="ci">${ICONS[card.type]||'?'}</div><div class="cn">${isLeg?'★ ':''}${card.upgraded?card.name+'✦':card.name}</div><div class="ct">${TYPE_TH[card.type]||card.type}</div><div class="cdesc">${card.desc}</div><div style="text-align:center;margin-top:1px">${badges}</div><div class="crb r${card.rarity}"></div>`;
+  
+  // 💡 เพิ่มคำอธิบาย (Tooltip) เมื่อเอาเมาส์ชี้
+  let tips = [];
+  if(card.exhaust) tips.push("EX (Exhaust): เล่นแล้วจะหายไปจากการต่อสู้นี้ (ไม่วนกลับมาจั่วใหม่)");
+  if(card.retain) tips.push("RET (Retain): การ์ดใบนี้จะไม่ถูกทิ้งเมื่อจบเทิร์น");
+  if(card.piercing || (card.desc&&card.desc.includes('ทะลุ'))) tips.push("ทะลุบล็อก: ทำความเสียหายเข้า HP โดยตรง ไม่ถูกหักลบด้วยโล่/เกราะ");
+  if(card.desc&&card.desc.includes('สะท้อน')) tips.push("สะท้อน: ทำความเสียหายสวนกลับไปยังศัตรูเมื่อถูกโจมตีในเทิร์นนี้");
+  if((card.desc&&card.desc.includes('พิษ')) || card.poison) tips.push("พิษ (Poison): ศัตรูเสีย HP ตามตัวเลขในตอนเริ่มเทิร์น (ตัวเลขจะลดลง 1 ต่อเทิร์น)");
+  if((card.desc&&card.desc.includes('ไฟ')) || card.burn) tips.push("ไฟ (Burn): ศัตรูเสีย HP ตามตัวเลขในตอนเริ่มเทิร์น (ตัวเลขติดไฟจะไม่ลดเองจนกว่าศัตรูจะตาย)");
+  if((card.desc&&card.desc.includes('อ่อนแอ')) || card.vuln) tips.push("อ่อนแอ (Vulnerable): ทำให้ศัตรูโดนโจมตีทุกชนิดแรงขึ้น 50%");
+  if((card.desc&&card.desc.includes('อ่อนกำลัง')) || card.weak) tips.push("อ่อนกำลัง (Weak): ทำให้ศัตรูโจมตีเบาลง 30%");
+  if((card.desc&&card.desc.includes('ช้า')) || card.slow) tips.push("ช้า (Slow): บังคับศัตรูให้ข้ามการโจมตี 1 ครั้งในเทิร์นถัดไป");
+  if(card.manaAdd) tips.push(`เพิ่มมานา: ได้รับ +${card.manaAdd} มานาฟรี สำหรับใช้เล่นการ์ดใบอื่นในเทิร์นนี้`);
+  if(card.goldCost) tips.push(`จ่ายด้วยทอง: การ์ดนี้จะหักทอง ${card.goldCost}💰 แทนมานา (ถ้าทองไม่พอ จะหักมานา 1 แทน)`);
+  if(card.type === 'curse') tips.push("คำสาป (Curse): การ์ดขยะที่ศัตรูยัดเข้ามาขัดขวาง ต้องจ่ายมานาเพื่อทิ้ง");
+
+  let tTitle = `${card.name} (${TYPE_TH[card.type]||card.type})\n${card.desc}`;
+  if(tips.length > 0) tTitle += `\n\n[ คำอธิบายเพิ่มเติม ]\n- ` + tips.join('\n- ');
+  el.setAttribute('title', tTitle);
+
   return el;
 }
 
