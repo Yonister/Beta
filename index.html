@@ -2713,18 +2713,27 @@ function renderShop(){
   tap(skillPtItem,()=>buySkillPoint()); sr.appendChild(skillPtItem);
   const ug=document.getElementById('sh-upgrade');ug.innerHTML='';
   G.deck.filter(c=>!c.upgraded&&c.type!=='curse').slice(0,6).forEach(card=>{
-    const w=document.createElement('div');w.className='sw';const el=cardEl(card);
+    // 🛠️ แก้ไข: สร้างกรอบห่อนอกสุด เพื่อกันไม่ให้ Layout ตีกัน
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:inline-flex; flex-direction:column; align-items:center; margin: 0 4px 14px 4px; vertical-align:top;';
+    
+    // กรอบห่อตัวการ์ด + ป้ายราคา
+    const w=document.createElement('div');
+    w.className='sw';
+    w.style.marginBottom='16px'; // ดันพื้นที่ด้านล่างเผื่อให้ป้ายราคา ไม่ให้ไปทับข้อความ
+    
+    const el=cardEl(card);
     const p=document.createElement('div');p.className='sprice';p.textContent='80💰';
+    w.appendChild(el);w.appendChild(p);
+    
+    // ข้อความพรีวิว (ปรับให้ขึ้นบรรทัดใหม่เพื่อให้อ่านง่ายและไม่โดนบัง)
     const prev=document.createElement('div');
-    prev.style.cssText='font-size:.6em;color:#88cc88;text-align:center;margin-top:12px;max-width:100px';
-    prev.textContent=upgradePreview(card);
-    w.appendChild(el);w.appendChild(p);w.appendChild(prev); tap(w,()=>upgradeCard(card));ug.appendChild(w);
-  });
-  const rm=document.getElementById('sh-remove');rm.innerHTML='';
-  G.deck.slice(0,8).forEach(card=>{
-    const w=document.createElement('div');w.className='sw';const el=cardEl(card);
-    const p=document.createElement('div');p.className='sprice';p.textContent='30💰';
-    w.appendChild(el);w.appendChild(p);tap(w,()=>removeCard(card));rm.appendChild(w);
+    prev.style.cssText='font-size:.65em;color:#88cc88;text-align:center;max-width:105px;line-height:1.4;';
+    prev.innerHTML=upgradePreview(card).replace(/ \| /g, '<br>');
+    
+    wrap.appendChild(w);wrap.appendChild(prev);
+    tap(wrap,()=>upgradeCard(card));
+    ug.appendChild(wrap);
   });
 }
 function buyCard(i){
