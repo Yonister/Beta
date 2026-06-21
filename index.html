@@ -2454,7 +2454,6 @@ function showMap(){
   document.getElementById('map-mhp').textContent=G.player.maxHp;
   renderMapRelics('map-relics');
   
-  // 🛠️ แก้ไขที่ 1: สลับให้โชว์หน้าจอก่อน เพื่อให้ดึงค่าความกว้าง (clientWidth) ของจอได้ถูกต้อง
   showSc('sc-map');
   renderActMap();
 }
@@ -2465,12 +2464,21 @@ function reachableFrom(id){const cur=G.actMap.nodeMap[id];return new Set(cur?cur
 function renderActMap(){
   const container=document.getElementById('map-rows');
   container.innerHTML='';
+  
+  // 🛠️ แก้ไขที่ 1: บังคับความกว้างให้คอนเทนเนอร์ ป้องกันการยุบตัวเป็น 0px
+  container.style.width = '100%';
+  container.style.maxWidth = '440px';
+  
   const map=G.actMap;
-  const W=Math.min(440,(container.clientWidth||440));
+  const W=container.clientWidth || Math.min(440, window.innerWidth - 32);
+  
   const ROW_H=46,TOP_PAD=28;
   const totalH=TOP_PAD*2+(ACT_FLOORS-1)*ROW_H;
   const wrap=document.createElement('div');
-  wrap.style.cssText=`position:relative;width:100%;height:${totalH}px`;
+  
+  // 🛠️ แก้ไขที่ 2: บังคับความกว้างของ wrap ให้คงที่ตาม W
+  wrap.style.cssText=`position:relative;width:${W}px;height:${totalH}px;margin:0 auto;`;
+  
   const colX=col=>20+(col/(ACT_WIDTH-1))*(W-40);
   const rowY=f=>totalH-TOP_PAD-f*ROW_H;
   
@@ -2485,10 +2493,10 @@ function renderActMap(){
     });
   }));
 
-  // 🛠️ แก้ไขที่ 2: ห่อ SVG ไว้ใน HTML div ก่อนใช้ innerHTML เพื่อป้องกันบั๊กบนบางเบราว์เซอร์
+  // ห่อ SVG และระบุ xmlns ป้องกันบราวเซอร์ไม่เรนเดอร์
   const svgContainer = document.createElement('div');
   svgContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1';
-  svgContainer.innerHTML = `<svg viewBox="0 0 ${W} ${totalH}" style="width:100%;height:100%">${edges}</svg>`;
+  svgContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${totalH}" style="width:100%;height:100%">${edges}</svg>`;
   wrap.appendChild(svgContainer);
 
   // โหนด
@@ -2500,6 +2508,7 @@ function renderActMap(){
     el.className=`amap-node ${cls}`;
     el.style.cssText=`position:absolute;left:${colX(node.col)}px;top:${rowY(node.f)}px`;
     el.textContent=node.type==='start'?'▶':(isMystery?'?':(NODE_ICON[node.type]||'?'));
+    // สถานะ
     if(node.id===G.mapPos)el.classList.add('amap-current');
     else if(node.done)el.classList.add('amap-visited');
     else if(reach.has(node.id))el.classList.add('amap-reach');
@@ -2509,6 +2518,7 @@ function renderActMap(){
   }));
   container.appendChild(wrap);
   
+  // เลื่อนไปที่ตำแหน่งปัจจุบัน
   setTimeout(()=>{const cur=wrap.querySelector('.amap-current');if(cur)cur.scrollIntoView({block:'center',behavior:'smooth'});},50);
 }
 
