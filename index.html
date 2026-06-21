@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Card Tower v3.6</title>
-<!-- Firebase Setup -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
@@ -204,7 +203,7 @@ body{background:#0d0d1f;color:#e0d4ff;font-family:'Segoe UI',sans-serif;min-heig
 .relic-icon{font-size:1.8em;text-align:center}
 .relic-name{font-size:.75em;font-weight:700;color:#cc88ff;text-align:center;margin-top:2px}
 .relic-desc{font-size:.65em;color:#9070b8;text-align:center;margin-top:2px;line-height:1.3}
-.relic-price{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:#ffc844;color:#1a0800;border-radius:10px;padding:1px 8px;font-size:.68em;font-weight:700;white-space:nowrap}
+.relic-price{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:#ffc844;color:#1a0800;border-radius:10px;padding:1px 8px;font-size:#68em;font-weight:700;white-space:nowrap}
 /* EVENT */
 #sc-event{justify-content:flex-start;gap:10px;padding-top:20px}
 .event-box{background:#111128;border:2px solid #cc8822;border-radius:14px;padding:18px;width:100%;max-width:420px}
@@ -309,7 +308,7 @@ body{background:#0d0d1f;color:#e0d4ff;font-family:'Segoe UI',sans-serif;min-heig
       <p><b style="color:#88ff88">⚔️ การต่อสู้</b><br>เล่นการ์ดโดยใช้ 💎 มานา (รีเซ็ตทุกเทิร์น) — การ์ดโจมตี ป้องกัน เวทย์ บัฟ จบเทิร์นแล้วการ์ดในมือจะถูกทิ้ง แล้วจั่วใหม่</p>
       <p><b style="color:#ff8888">👹 อ่าน Intent ศัตรู</b><br>แถบบนบอกล่วงหน้าว่าศัตรูจะทำอะไร 4 เทิร์น — สีแดง 💀 = ตีตายถ้าไม่ตั้งรับ, สีม่วง 💥 = บอสกำลังชาร์จท่าไม้ตาย!</p>
       <p><b style="color:#44ff44">🔥 จุดอ่อนธาตุ</b><br>การ์ดที่ขอบเรืองแสงเขียว 💥 คือธาตุตรงจุดอ่อนศัตรู ดีลเพิ่ม 50%</p>
-      <p><b style="color:#dd88ff">⭐ Skill Tree</b><br>เก็บ Skill Point จากการสู้/event มาอัพสกิลเฉพาะสายของ Class (กดไอคอน ⭐ บน map)</p>
+      <p><b style="color:#2a2">⭐ Skill Tree</b><br>เก็บ Skill Point จากการสู้/event มาอัพสกิลเฉพาะสายของ Class (กดไอคอน ⭐ บน map)</p>
       <p><b style="color:#88ffbb">💎 Relic</b><br>ของวิเศษติดตัวทั้ง run หาได้จาก Treasure/Event/บอส — เสริม build ข้าม Class ได้</p>
       <p><b style="color:#ffc844">🔮 Fusion</b><br>ผสมการ์ด 2 ใบตามสูตรเป็นการ์ดใหม่ที่แรงกว่า (ทำที่จุดพัก 🏕️)</p>
       <p><b style="color:#ffd700">📅 Daily Challenge</b><br>ทุกคนเจอ map เหมือนกันในแต่ละวัน แข่ง leaderboard กันแฟร์ๆ</p>
@@ -357,7 +356,6 @@ body{background:#0d0d1f;color:#e0d4ff;font-family:'Segoe UI',sans-serif;min-heig
   </div>
 </div>
 
-<!-- STATUS INFO MODAL -->
 <div class="modal-overlay" id="status-info-modal">
   <div class="modal-box">
     <h3>ℹ️ สัญลักษณ์และสถานะทั้งหมด</h3>
@@ -366,7 +364,6 @@ body{background:#0d0d1f;color:#e0d4ff;font-family:'Segoe UI',sans-serif;min-heig
   </div>
 </div>
 
-<!-- SCREENS -->
 <div class="screen active" id="sc-title">
   <div class="ttl">⚔️ Card Tower ⚔️</div>
   <div class="ttl-sub">v3.7 — Relics, Daily & Boss Ultimate!</div>
@@ -799,9 +796,8 @@ const EVENTS=[
    ]},
 ];
 
-// ============ RELIC POOL (เก็บระหว่าง run) ============
+// ============ RELIC POOL ============
 const RELIC_POOL=[
-  // ใช้ passive ที่มี logic อยู่แล้ว → ทำงานทันที
   {id:'rl_ember',name:'ถ่านนิรันดร์',icon:'🔥',desc:'เริ่มต่อสู้ด้วยโจมตี+4',passive:'firstTurnAtk',rarity:'c'},
   {id:'rl_shield',name:'โล่หิน',icon:'🛡️',desc:'เริ่มต่อสู้ด้วยบล็อก 5',passive:'startBlock',rarity:'c'},
   {id:'rl_coin',name:'กระเป๋าทอง',icon:'💰',desc:'ได้ทองจากการสู้ +25%',passive:'moreGold',rarity:'c'},
@@ -812,13 +808,12 @@ const RELIC_POOL=[
   {id:'rl_crit',name:'ใบมีดคม',icon:'⚔️',desc:'การ์ดดีล 20+ แรงขึ้น 15%',passive:'critEdge',rarity:'r'},
   {id:'rl_block',name:'ศิลาทนทาน',icon:'🪨',desc:'บล็อกทุกแหล่ง +15%',passive:'blockBoost',rarity:'u'},
   {id:'rl_burn',name:'คบเพลิงนรก',icon:'🔥',desc:'Burn ที่วาง +2',passive:'moreBurn',rarity:'u'},
-  // passive ใหม่ (logic เพิ่มด้านล่าง)
   {id:'rl_draw',name:'ตำราโบราณ',icon:'📖',desc:'จั่วการ์ด +1 ใบทุกเทิร์น',passive:'relicDraw',rarity:'r'},
   {id:'rl_regen',name:'หัวใจฟีนิกซ์',icon:'❤️‍🔥',desc:'ฟื้น 3 HP ทุกต้นเทิร์น',passive:'relicRegen',rarity:'r'},
   {id:'rl_maxhp',name:'หินยักษ์',icon:'🗿',desc:'HP สูงสุด +15 (ทันที)',passive:'relicMaxHp',rarity:'c',instant:true},
 ];
 function grantRelic(rarityFilter){
-  let pool=RELIC_POOL.filter(r=>!G.relics.some(o=>o.id===r.id)); // ไม่ซ้ำ
+  let pool=RELIC_POOL.filter(r=>!G.relics.some(o=>o.id===r.id));
   if(rarityFilter)pool=pool.filter(r=>r.rarity===rarityFilter);
   if(!pool.length)pool=RELIC_POOL.filter(r=>!G.relics.some(o=>o.id===r.id));
   if(!pool.length){G.gold+=80;toast('Relic ครบแล้ว! ได้ทองแทน +80💰');return;}
@@ -830,8 +825,6 @@ function grantRelic(rarityFilter){
 }
 
 // ============ MAP GENERATOR ============
-// ============ [BACKUP] ระบบ MAP เดิม (เลือก 1 จาก 2 ทีละชั้น) ============
-// เก็บไว้เผื่อย้อนกลับ — ไม่ได้เรียกใช้แล้ว (แทนด้วยระบบแผน StS ด้านล่าง)
 function _legacyGenMap(floor){
   const isBoss=floor%10===0;
   if(isBoss)return[[{type:'boss',label:'👑 Boss',floor}]];
@@ -850,12 +843,9 @@ function _legacyGenMap(floor){
   return[opts];
 }
 
-// ============ ระบบ MAP ใหม่ (Slay the Spire — แผนทั้ง act) ============
-const ACT_FLOORS=20;   // 20 ชั้นต่อ act (ชั้นสุดท้าย = boss)
-const ACT_WIDTH=7;     // คอลัมน์สูงสุด
-// สร้างแผนทั้ง act จาก seed (daily ใช้ seed คงที่ → ทุกคนเหมือนกัน)
+const ACT_FLOORS=20;
+const ACT_WIDTH=7;
 function genActMap(actNum){
-  // seed: daily → จากวันที่+act, ปกติ → สุ่ม (เก็บไว้ใน G เพื่อ regen ตอน resume ได้เหมือนเดิม)
   let seedBase;
   if(_dailyActive)seedBase=(dateSeed()*101+actNum*7919)|0;
   else seedBase=(G._mapSeed||(G._mapSeed=Math.floor(Math.random()*1e9)))+actNum*7919;
@@ -891,8 +881,7 @@ function genActMap(actNum){
   return {rows,nodeMap,act:actNum};
 }
 
-// ============ SONGBOOK SYSTEM (Musician) ============
-// ใช้ "ธาตุ/สีของการ์ด" เรียงตามลำดับ — เล่นการ์ดอะไรก็ได้ที่มีธาตุตรงตามลำดับ
+// ============ SONGBOOK SYSTEM ============
 const SONGBOOK=[
   {notes:['fire','fire','lightning'],name:'March of Fire',icon:'🔥',desc:'14 ดมจ ทะลุเกราะ + ติดไฟ 4',sp:'song_march'},
   {notes:['ice','ice','physical'],name:'Lullaby',icon:'🌙',desc:'16 บล็อก + แช่แข็งศัตรู',sp:'song_lullaby'},
@@ -901,14 +890,14 @@ const SONGBOOK=[
 ];
 function checkSongbook(card){
   const b=G.battle;
-  const note=card.element; // ใช้ธาตุของการ์ดเป็นโน้ต
+  const note=card.element;
   if(!['fire','ice','lightning','physical'].includes(note))return;
   b.recentNotes.push(note);
   if(b.recentNotes.length>3)b.recentNotes.shift();
   if(b.recentNotes.length<3)return;
-  const seq=b.recentNotes.join('-'); // ต้องตรงลำดับ
+  const seq=b.recentNotes.join('-');
   let song=SONGBOOK.find(s=>s.notes.join('-')===seq);
-  if(!song)return; // ไม่ตรงลำดับเพลงไหน → เก็บสะสมต่อ (ไม่ทริกเกอร์)
+  if(!song)return;
   {
     b.recentNotes=[]; 
     log(`🎵 ${song.icon} ${song.name}! ${song.desc}`,'combo');
@@ -1106,11 +1095,10 @@ function getSkillById(skillId){
 }
 function hasRelic(passiveId){
   let lv=G.skills&&G.skills.some(s=>s.passive===passiveId)?G.skills.find(s=>s.passive===passiveId).level:0;
-  if(G.relics)lv+=G.relics.filter(r=>r.passive===passiveId).length; // relic ที่เก็บระหว่าง run
+  if(G.relics)lv+=G.relics.filter(r=>r.passive===passiveId).length;
   return lv;
 }
 function nextLevelCost(baseCost,currentLevel){
-  // แบบ Linear Scaling: ใช้แต้มถูกลงมาก อัพง่ายขึ้น (baseCost + level)
   return baseCost + currentLevel; 
 }
 function learnSkill(skillId){
@@ -1187,7 +1175,7 @@ function renderSkillTreeModal(){
 let G={};
 function initG(cls,playerName){
   const maxHp=cls.hp;
-  const startingGold = (cls.id === 'merchant') ? 200 : 100; // พ่อค้า 200 ทอง
+  const startingGold = (cls.id === 'merchant') ? 200 : 100;
   G={
     floor:1,gold:startingGold,kills:0,
     player:{hp:maxHp,maxHp,cls:cls.id,clsName:cls.name,name:playerName||'Anonymous'},
@@ -1209,9 +1197,9 @@ const SAVE_KEY='ct_run_save';
 function saveRun(){
   if(!G||!G.player)return;
   try{
-    const snap={...G,battle:null}; // ไม่เซฟสภาพกลางสู้ (resume ที่ map)
+    const snap={...G,battle:null};
     localStorage.setItem(SAVE_KEY,JSON.stringify(snap));
-  }catch(e){/* storage เต็ม/ปิด — ข้ามเงียบๆ */}
+  }catch(e){}
 }
 function hasSavedRun(){
   try{const s=localStorage.getItem(SAVE_KEY);if(!s)return false;const d=JSON.parse(s);return d&&d.player&&d.floor;}catch(e){return false;}
@@ -1220,18 +1208,15 @@ function loadRun(){
   try{
     const s=localStorage.getItem(SAVE_KEY);if(!s)return false;
     const d=JSON.parse(s);
-    // ตรวจความสมบูรณ์ขั้นต่ำ — save เก่าหรือเสียหายจะถูกปฏิเสธอย่างปลอดภัย
     if(!d||!d.player||!d.player.cls||typeof d.floor!=='number'||!Array.isArray(d.deck)){
       clearRun();return false;
     }
     G=d;G.battle=null;
-    // เติม field ที่อาจหายจาก save เวอร์ชันเก่า (กัน crash หลังอัปเดต)
     if(!Array.isArray(G.relics))G.relics=[];
     if(typeof G.actNum!=='number')G.actNum=1;
     if(typeof G._mapSeed==='undefined')G._mapSeed=null;
     if(!G.mapPos)G.mapPos='start';
     if(typeof G._pendingNode==='undefined')G._pendingNode=null;
-    // ถ้า save เก่าไม่มี actMap จะถูกสร้างใหม่ตอน showMap (เริ่ม act ใหม่)
     if(!G.actMap||!G.actMap.nodeMap)G.actMap=null;
     if(!Array.isArray(G.skills))G.skills=[];
     if(typeof G.skillPoints!=='number')G.skillPoints=0;
@@ -1244,9 +1229,7 @@ function loadRun(){
     if(typeof G.player.maxHp!=='number')G.player.maxHp=G.player.hp||30;
     if(!G.player.name)G.player.name='Anonymous';
     if(!G.player.clsName)G.player.clsName=G.player.cls||'?';
-    // reset flag ชั่วคราวที่ไม่ควรค้างข้าม session
     G.pendingPacks=G.pendingPacks||0;G._postBossShop=false;G._inPostBossShop=false;
-    // ถ้าเป็น daily run ให้เปิด seeded RNG กลับ (แต่ถ้าข้ามวันแล้ว ถือเป็น run ปกติต่อ)
     if(G.daily&&G.dailyDate===todayStr())enableDailyRng();
     else{disableDailyRng();G.daily=false;}
     return true;
@@ -1263,7 +1246,7 @@ function refreshResumeBtn(){
   }else btn.style.display='none';
 }
 
-// ============ SOUND (Web Audio สังเคราะห์ ไม่ต้องโหลดไฟล์) ============
+// ============ SOUND ============
 let _audioCtx=null,_soundOn=(localStorage.getItem('ct_sound')!=='off');
 function _ac(){if(!_audioCtx){try{_audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){_audioCtx=null;}}return _audioCtx;}
 function sfx(type){
@@ -1305,7 +1288,8 @@ function showSc(id){
     fdb.style.display=show?'flex':'none';
   }
 }
-// ============ SEEDED RNG (Daily Mode) ============
+
+// ============ SEEDED RNG ============
 let _origRandom=Math.random.bind(Math);
 let _seedState=0;
 let _dailyActive=false;
@@ -1336,7 +1320,6 @@ function floatDmg(text,kind){
   const d=document.createElement('div');
   d.className='float-dmg fd-'+(kind||'normal');
   d.textContent=text;
-  // กระจายตำแหน่งแนวนอนเล็กน้อยกันซ้อน
   d.style.left=(42+Math.random()*16)+'%';
   box.appendChild(d);
   setTimeout(()=>d.remove(),950);
@@ -1350,7 +1333,6 @@ function cardEl(card,opts={}){
   const typeClass={attack:'ca',defense:'cd',magic:'cm',skill:'ck',buff:'cb2',curse:'ccurse'}[card.type]||'ca';
   el.className=`card ${isLeg?'cl':typeClass} pop`;
   if(opts.dim)el.classList.add('dim');
-  // ไฮไลต์การ์ดที่ธาตุตรงจุดอ่อนศัตรู (เฉพาะตอนสู้จริง ยังไม่จบ)
   if(!opts.noWeakHint&&G.battle&&!G.battle.over&&G.battle.e&&G.battle.e.weakness&&card.element&&card.element===G.battle.e.weakness&&(card.damage||card.sp)){
     el.classList.add('weak-hit');
   }
@@ -1366,7 +1348,7 @@ function cardEl(card,opts={}){
 }
 
 // ============ LEADERBOARD ============
-let _lbMode='all'; // 'all' หรือ 'daily'
+let _lbMode='all';
 function setLBMode(mode){
   _lbMode=mode;
   const allBtn=document.getElementById('lb-tab-all'),dayBtn=document.getElementById('lb-tab-daily');
@@ -1387,12 +1369,11 @@ function filterLB(lb){
     const today=todayStr();
     return lb.filter(r=>r.daily===true&&r.dailyDate===today);
   }
-  return lb; // ทั่วไป = รวมทุก run (Daily + ปกติ)
+  return lb;
 }
 function updateLB(){
   if(fbDb){
     if(_lbMode==='daily'){
-      // ดึงแบบ simple แล้วกรองฝั่ง client (ไม่ต้องสร้าง composite index ใน Firestore)
       fbDb.collection('leaderboard').where('daily','==',true).limit(50).get()
         .then(snapshot=>{
           let lb=snapshot.docs.map(doc=>doc.data());
@@ -1436,30 +1417,27 @@ function saveLB(floor){
 // ============ BATTLE LOGIC ============
 function startBattle(isElite=false,isBoss=false){
   enStatPanelOpen=false; 
-  // boss มาจาก node.type==='boss' (ส่งผ่าน param) — bossIdx ตาม act
   const bossIdx=(G.actNum||1)-1;
   let e;
   if(isBoss){
     const b=BOSSES[Math.min(bossIdx,BOSSES.length-1)];
-    // ถ้าวนเกินจำนวนบอส (act สูงมาก) ให้บอส scale ขึ้นตามชั้นที่เกิน
     const overflow=Math.max(0,bossIdx-(BOSSES.length-1));
     const bossMult=overflow>0?(1+overflow*0.35):1;
     const bHp=Math.floor(b.hp*bossMult);
     const bAtk=Math.floor(b.atk*bossMult);
     e={...b,hp:bHp,maxHp:bHp,atk:bAtk,block:0,poison:0,burn:0,slowed:false,patIdx:0,armor:b.armor||0,gold:b.gold,hp2:false};
-    e.ultEvery=4; // บอสร่ายท่าใหญ่ทุก 4 เทิร์น
+    e.ultEvery=4;
     e.ultCountdown=4;
-    e._ultDmgMult=2.4; // ท่าใหญ่ = atk × 2.4
+    e._ultDmgMult=2.4;
   } else if(isElite){
     const et=ELITES[Math.floor(Math.random()*ELITES.length)];
     const hp=Math.floor(et.bHp*(1+(G.floor-1)*0.14));
     const atk=Math.floor(et.bAtk*(1+(G.floor-1)*0.11));
     e={...et,hp,maxHp:hp,atk,block:0,poison:0,burn:0,slowed:false,patIdx:0,armor:et.armor||0,gold:et.gold,hp2:false};
   } else {
-    // สุ่มมอนสเตอร์จาก pool ที่เปิดตามชั้น — ยิ่งชั้นสูง ตัวแข็งยิ่งเข้ามา
-    const depthInAct=G._pendingNode?G._pendingNode.f:((G.floor-1)%ACT_FLOORS); // ความลึกในแผน act
-    const act=(G.actNum||1)-1; // 0,1,2...
-    const within=depthInAct; // 0-19 ภายในแต่ละ act
+    const depthInAct=G._pendingNode?G._pendingNode.f:((G.floor-1)%ACT_FLOORS);
+    const act=(G.actNum||1)-1;
+    const within=depthInAct;
     const actShift=Math.min(act,ETYPES.length-3);
     const poolSize=Math.min(ETYPES.length,3+actShift+Math.floor(within*0.25));
     const minIdx=Math.min(ETYPES.length-3,actShift+Math.max(0,poolSize-actShift-5));
@@ -1467,7 +1445,6 @@ function startBattle(isElite=false,isBoss=false){
     const t=ETYPES[Math.min(pick,ETYPES.length-1)];
     const f=G.floor-1;
     const hp=Math.floor(t.bHp*(1+f*0.16));
-    // ATK โตเร็วช่วงต้น แล้วชะลอช่วงปลาย (กันตีตายเทิร์นเดียวด่านสูง)
     const atkScale=f<=15?(1+f*0.13):(1+15*0.13+(f-15)*0.06);
     const atk=Math.floor(t.bAtk*atkScale);
     e={...t,hp,maxHp:hp,atk,block:0,poison:0,burn:0,slowed:false,patIdx:0,armor:0,gold:t.gold,hp2:false};
@@ -1475,7 +1452,7 @@ function startBattle(isElite=false,isBoss=false){
 
   let startMana=G.player.cls==='mage'?4:3;
   startMana+=hasRelic('startMana'); 
-  startMana+=(G._bonusMaxMana||0); // พรถาวรจากบอส
+  startMana+=(G._bonusMaxMana||0);
   let firstTurnManaBonus=hasRelic('firstMana'); 
 
   G.battle={
@@ -1497,13 +1474,13 @@ function startBattle(isElite=false,isBoss=false){
     log(`✨ Divine Shield: เริ่มด้วยป้องกันถาวร ${G.battle.permDef}`, 'blk');
   }
   if(hasRelic('capitalism')){
-    const capBonus=Math.min(30,Math.floor(G.gold/20)*hasRelic('capitalism')); // เพดาน +30 กันฟาร์มทองตีแหลก
+    const capBonus=Math.min(30,Math.floor(G.gold/20)*hasRelic('capitalism'));
     G.battle.atkBuff+=capBonus;
     if(capBonus>0)log(`💰 Capitalism: มีทอง ${G.gold} → โจมตี+${capBonus}${capBonus>=30?' (สูงสุด)':''}`,'stat');
   }
   if(hasRelic('firstTurnAtk'))G.battle.atkBuff+=4*hasRelic('firstTurnAtk');
   if(hasRelic('backupVocals')){
-    const preNotes=Math.min(hasRelic('backupVocals'),2); 
+    const preNotes=Math.min(hasRelic('backupVocals'),2);
     for(let i=0;i<preNotes;i++)G.battle.recentNotes.push('skill'); 
     log(`🎵 Backup Vocals: เริ่มต้นมีโน้ตติดตัว ${preNotes} ตัว`,'stat');
   }
@@ -1542,7 +1519,6 @@ function addCurseToHand(id){
 function playCard(idx){
   const b=G.battle;if(b.over)return;
   const card=b.hand[idx];if(!card)return;
-  // กันลูปอนันต์ — จำกัดการเล่นการ์ดต่อเทิร์น (สูงมากพอสำหรับ combo ปกติ)
   if(b.cardsPlayedThisTurn>=50){toast('⚠️ เล่นการ์ดได้สูงสุด 50 ใบต่อเทิร์น');return;}
   sfx(card.type==='curse'?'curse':'card');
   let cost=b.nextFree?0:card.cost;
@@ -1563,7 +1539,6 @@ function playCard(idx){
     return;
   }
 
-  // เคลียร์ Curse
   if(card.type==='curse'){
     b.mana -= cost;
     b.nextFree = false;
@@ -1606,7 +1581,6 @@ function playCard(idx){
   if(hasRelic('goldenTouch')&&card.goldCost)dmgMult*=1+0.15*hasRelic('goldenTouch'); 
   if(hasRelic('coinShower')&&card.id==='mcointoss')dmgMult*=1+0.15*hasRelic('coinShower'); 
 
-  // Heavy Mastery / Toxic Shock
   if(hasRelic('heavyMastery') && card.cost >= 2) dmgMult *= 1 + 0.2 * hasRelic('heavyMastery');
   if(hasRelic('toxicShock') && b.e.poison > 0 && card.type === 'attack') dmgMult *= 1 + 0.1 * hasRelic('toxicShock');
 
@@ -1681,12 +1655,12 @@ function playCard(idx){
     renderSongTracker();
   }
   if(sp==='tempoup'){
-    b.e._tempoUpBonus=(b.e._tempoUpBonus||0)+0.1; 
+    b.e._tempoUpBonus=(b.e._tempoUpBonus||0)+0.1;
     log('Tempo Up: ศัตรูจะตีแรงขึ้น 10% เทิร์นถัดไป','stat');
   }
   if(sp==='pickpocket'){
     if(b._lastHitPierced){
-      const goldGain=5+3*hasRelic('pickpocketMaster'); 
+      const goldGain=5+3*hasRelic('pickpocketMaster');
       G.gold+=goldGain;
       log(`Pickpocket: ทะลุบล็อกได้! +${goldGain} Gold`,'stat');
       toast(`💰 +${goldGain} Gold!`);
@@ -1698,7 +1672,7 @@ function playCard(idx){
   }
   if(sp==='blink'){b.nextDodge=true;draw(1);toast('✨ Blink! หลีกเลี่ยงการโจมตีถัดไป!');}
   if(sp==='moverload'){doDmg(Math.floor(6*dmgMult),1,false,'Overload','lightning');const daze=DB.find(x=>x.id==='daze');if(daze)G.deck.push({...daze});}
-  if(sp==='mfocus'){const magicCount=b.hand.filter(c=>c.type==='magic').length;if(magicCount>=2){draw(2);b.mana+=1;toast('🔮 Mana Focus!');}else{draw(1);toast('Mana Focus: magic ไม่พอ draw 1');}}
+  if(sp==='mfocus'){const magicCount=b.hand.filter(c=>c.type==='magic').length;if(magicCount>=2){b.mana+=1;draw(2);toast('🔮 Mana Focus!');}else{draw(1);toast('Mana Focus: magic ไม่พอ draw 1');}}
   if(sp==='backstab'){const bonus=b.played===1?8:0;doDmg(Math.floor((8+bonus)*dmgMult),1,false,'Backstab'+(bonus?' [FIRST!]':''),'physical',null,righteousFuryBonus(card));}
   if(sp==='tdagger'){const prevType=b.recent[b.recent.length-1];const bonus=prevType==='attack'?5:0;doDmg(Math.floor((5+bonus)*dmgMult),2,false,'Twin Daggers'+(bonus?' [COMBO+5]':''),'physical',null,righteousFuryBonus(card));}
   if(sp==='divine'){b.block+=999;log('Divine Shield: บล็อกทุกอย่างเทิร์นนี้','blk');toast('✨ DIVINE SHIELD!');}
@@ -1706,11 +1680,10 @@ function playCard(idx){
   if(sp==='deathblow'){const bonus=b.e.hp/b.e.maxHp<0.5?15:0;doDmg(Math.floor((30+bonus)*dmgMult),1,true,'Death Blow'+(bonus?' 💀':''),'physical',null,righteousFuryBonus(card));}
 
   if(G.player.cls==='rogue'&&card.cost===0&&card.damage){
-    const bonusMult=0.5+0.25*hasRelic('rogue_0cost2'); 
+    const bonusMult=0.5+0.25*hasRelic('rogue_0cost2');
     doDmg(Math.floor(card.damage*bonusMult*dmgMult),1,card.piercing,'Rogue Bonus',card.element);
   }
 
-  // Rogue: Combo Finisher
   if(hasRelic('comboFinisher') && b.cardsPlayedThisTurn % 4 === 0){
     doDmg(10 * hasRelic('comboFinisher'), 1, false, 'Combo Finisher', 'physical');
     toast('🗡️ Combo Finisher!');
@@ -1722,7 +1695,7 @@ function playCard(idx){
   if(b.e.hp<=0){battleWin();return;}
   checkArcaneRebirth();
   if(G.player.hp<=0){
-    if(b.phoenixActive){G.player.hp=1;b.phoenixActive=false;toast('🦅 PHOENIX ช่วยชีวิต!');}
+    if(b.phoenixActive){G.player.hp=1;b.phoenixActive=false;toast('🦅 PHOENIX!');}
     else{G.player.hp=0;battleLose();return;}
   }
   renderBattle();
@@ -1742,7 +1715,7 @@ function doDmg(amt,hits,piercing,src,element,cardType,flatBonus){
     if(element&&e.weakness&&element===e.weakness){d=Math.floor(d*1.5);weaknessHit=true;}
     if(!piercing&&e.armor>0)d=Math.max(0,d-e.armor);
     if(!piercing&&e.block>0){const bl=Math.min(e.block,d);e.block-=bl;d-=bl;}
-    if(d>0)hitHpDirectly=true; 
+    if(d>0)hitHpDirectly=true;
     e.hp=Math.max(0,e.hp-d);total+=d;
   }
   if(flatBonus&&flatBonus>0){
@@ -1768,22 +1741,10 @@ function doDmg(amt,hits,piercing,src,element,cardType,flatBonus){
   return total;
 }
 
-function checkPhase2(e){
-  if(!e.hp2&&e.hp<=Math.floor(e.maxHp*0.5)){
-    if(e.phase2){e.hp2=true;toast(`⚠️ ${e.name} เข้า Phase 2!`);log(`${e.name} PHASE 2! โจมตีเพิ่ม!`,'combo');e.atk=Math.floor(e.atk*1.4);}
-    if(e.phase2Atk){e.hp2=true;toast(`🔥 ${e.name} PHASE 2!`);e.atk=e.phase2Atk;}
-  }
-}
-
-function tryFreeze(e){
-  // คืน true ถ้าแช่แข็งสำเร็จ — บอสที่เพิ่งโดน freeze จะต้าน (กัน stun-lock)
-  if(e.freezeImmune>0)return false;
-  e.frozen=true;return true;
-}
 function doBlock(amt,src){
-  const b=G.battle; 
+  const b=G.battle;
   if(hasRelic('blockBoost')) amt=Math.floor(amt*(1+0.15*hasRelic('blockBoost')));
-  b.block+=amt; b.tBlk+=amt; 
+  b.block+=amt; b.tBlk+=amt;
   log(`${src}: +${amt} บล็อก`,'blk');
   if(amt>0)sfx('block');
   
@@ -1829,11 +1790,11 @@ function checkCombo(card){
   const b=G.battle;b.recent.push(card.type);if(b.recent.length>3)b.recent.shift();
   const r=b.recent,last=r[r.length-1],prev=r[r.length-2];
   let magicBonus=G.player.cls==='mage'?5:0;
-  magicBonus+=5*hasRelic('echoCombo'); 
+  magicBonus+=5*hasRelic('echoCombo');
   if(last==='magic'&&prev==='magic'){doDmg(7+magicBonus,1,false,'🔥 FIRE COMBO!','fire');toast(`🔥 FIRE COMBO! +${7+magicBonus}`);}
   if(last==='defense'&&prev==='defense'){doBlock(6,'🛡️ SHIELD MASTER!');toast('🛡️ +6 บล็อก!');}
   if((last==='skill'&&prev==='attack')||(last==='attack'&&prev==='skill')){
-    const drawN=1+hasRelic('flowCombo'); 
+    const drawN=1+hasRelic('flowCombo');
     draw(drawN);toast(`⚡ QUICK COMBO! +${drawN}`);
   }
   if(last==='buff'&&prev==='attack'){G.battle.tempAtk+=3;toast('💫 BUFF STRIKE! +3');}
@@ -1844,7 +1805,6 @@ function endTurn(){
   const b=G.battle;if(b.over)return;
   setTurnUI('enemy');
 
-  // --- เช็คคำสาป Doom Mark ในมือ ---
   let doomCount = 0;
   b.hand.forEach(c => { if(c.sp === 'curse_doom') doomCount++; });
   if(doomCount > 0){
@@ -1858,7 +1818,6 @@ function endTurn(){
     }
   }
 
-  // --- ระบบ V1: ทิ้งการ์ดทั้งหมดเมื่อจบเทิร์น (ยกเว้น Retain) ---
   const retainedCards = [];
   b.hand.forEach(c => {
     if(c.retain) { c._used = false; retainedCards.push(c); }
@@ -1866,7 +1825,6 @@ function endTurn(){
   });
   b.hand = retainedCards;
 
-  // --- พ่อค้าได้รับเงินทุกเทิร์น (ปรับเป็น 3 ทอง) ---
   if(G.player.cls === 'merchant'){
     const income = 3;
     G.gold += income;
@@ -1889,9 +1847,9 @@ function endTurn(){
   b.dmgTakenLastEnemyTurn=b.dmgTakenThisTurn;
   b.mana=b.maxMana;b.block=0;b.tempAtk=0;b.played=0;b.tDmg=0;b.tBlk=0;
   if(b.nextManaDrain){b.mana=Math.max(0,b.mana-2);b.nextManaDrain=false;log('🌌 มานาถูกดูด -2!','stat');}
-  b.recent=[]; b.recentNotes=[]; 
+  b.recent=[]; b.recentNotes=[];
   b.dmgTakenThisTurn=0;b.cardsPlayedThisTurn=0;
-  if(b.playerBurn>0)b.playerBurn=Math.max(0,b.playerBurn-1); 
+  if(b.playerBurn>0)b.playerBurn=Math.max(0,b.playerBurn-1);
   if(b.e.vulnTurns>0)b.e.vulnTurns--;if(b.e.weakTurns>0)b.e.weakTurns--;
   if(b.extraTurn>0){b.extraTurn--;toast('🔄 เทิร์นพิเศษ!');log('เทิร์นพิเศษ!','combo');}
   
@@ -1917,8 +1875,19 @@ function checkArcaneRebirth(){
   }
 }
 
+function checkPhase2(e){
+  if(!e.hp2&&e.hp<=Math.floor(e.maxHp*0.5)){
+    if(e.phase2){e.hp2=true;toast(`⚠️ ${e.name} เข้า Phase 2!`);log(`${e.name} PHASE 2! โจมตีเพิ่ม!`,'combo');e.atk=Math.floor(e.atk*1.4);}
+    if(e.phase2Atk){e.hp2=true;toast(`🔥 ${e.name} PHASE 2!`);e.atk=e.phase2Atk;}
+  }
+}
+
+function tryFreeze(e){
+  if(e.freezeImmune>0)return false;
+  e.frozen=true;return true;
+}
+
 function ultInfo(e){
-  // map ability ของบอส → ชื่อท่าไม้ตาย + เอฟเฟกต์พิเศษ (ใช้ทั้ง telegraph และตอนยิงจริง)
   const map={
     golem_armor:{name:'ทุบปฐพี',effect:'none'},
     dragon_burn:{name:'ลมหายใจเพลิง',effect:'burn'},
@@ -1931,6 +1900,7 @@ function ultInfo(e){
   };
   return map[e.bossAbility]||{name:'ULTIMATE',effect:'none'};
 }
+
 function enemyTurn(){
   const b=G.battle,e=b.e;
   if(e.poison>0){e.hp=Math.max(0,e.hp-e.poison);log(`☠️ พิษ ${e.poison}`,'dmg');e.poison=Math.max(0,e.poison-1);}
@@ -1940,22 +1910,19 @@ function enemyTurn(){
   if(e.freezeImmune>0)e.freezeImmune--;
   if(e.slowed){log(`${e.name} ช้า`,'stat');e.slowed=false;e.patIdx++;return;}
 
-  // ===== BOSS ULTIMATE: ท่าใหญ่นับถอยหลัง =====
   if(e.ultEvery){
     e.ultCountdown--;
     if(e.ultCountdown<=0){
-      e.ultCountdown=e.ultEvery; // reset
+      e.ultCountdown=e.ultEvery;
       const ult=ultInfo(e);
       const weakMult=e.weakTurns>0?0.7:1;
       let raw=Math.floor(e.atk*e._ultDmgMult*weakMult);
-      // เอฟเฟกต์พิเศษตาม ability ของบอส (ทำก่อนคิดดาเมจ)
       let extraLog='';
       if(ult.effect==='steal'){const st=b.block;if(st>0){b.block=0;e.hp=Math.min(e.maxHp,e.hp+st);extraLog=` ขโมยบล็อก ${st} ดูดเป็น HP!`;}}
       if(ult.effect==='drain'){b.block=0;b.nextManaDrain=true;extraLog=' ล้างบล็อก + ดูดมานาเทิร์นหน้า!';}
       if(ult.effect==='burn'){b.playerBurn+=(e.brnEach||5)+3;extraLog=` จุดไฟลามตัว +${(e.brnEach||5)+3}!`;}
       if(ult.effect==='curse'){addCurseToHand(e.curseHand||e.curseOnHit||'daze');extraLog=' สาปการ์ดใส่มือคุณ!';}
       if(ult.effect==='rage'){e.atk+=(e.ragePerTurn||3)*2;extraLog=` โกรธจัด ATK +${(e.ragePerTurn||3)*2}!`;}
-      // ท่าใหญ่ทะลุบล็อกครึ่งหนึ่ง (กันยืนตั้งโล่อย่างเดียว)
       let blocked=Math.min(b.block,Math.floor(raw*0.5));
       b.block=Math.max(0,b.block-blocked);
       let fd=Math.max(0,(raw-blocked)-b.permDef);
@@ -2081,7 +2048,7 @@ function battleWin(){
   let finalGold=hasRelic('moreGold')?Math.floor(gold*(1+0.25*hasRelic('moreGold'))):gold;
   if(G.player.cls==='merchant')finalGold=Math.floor(finalGold*1.15);
   if(b._investmentActive){
-    const investMult=1.3+0.1*hasRelic('smartInvestor'); 
+    const investMult=1.3+0.1*hasRelic('smartInvestor');
     finalGold=Math.floor(finalGold*investMult);
   }
   if(hasRelic('compoundInterest'))finalGold=Math.floor(finalGold*(1+0.1*hasRelic('compoundInterest')));
@@ -2097,15 +2064,15 @@ function battleWin(){
   }
   log(`🏆 ชนะ! +${finalGold}💰`,'heal');
   if(b.isBoss){
-    giveSkillPoint(2); 
-    G._postBossShop=true; 
+    giveSkillPoint(3);
+    G._postBossShop=true;
     G._pendingBossGold=finalGold;
     showBossReward();
   } else if(b.isElite){
     const eliteBonus=rnd(50,90);G.gold+=eliteBonus;
     toast(`💀 Elite ชนะ! +${eliteBonus}💰 โบนัส`);
-    giveSkillPoint(2);          // เดิม 1 → 2
-    grantRelic();               // การันตี Relic 1 ชิ้น (ของใหม่!)
+    giveSkillPoint(2);
+    grantRelic();
     showEliteRewardChoice(finalGold);
   } else {
     showReward(finalGold);
@@ -2170,7 +2137,7 @@ function renderBattle(){
     let canPlay = false;
 
     if(card.type === 'curse'){
-      canPlay = (b.mana >= costToPlay); 
+      canPlay = (b.mana >= costToPlay);
     } else if(card.goldCost) {
       let fallbackManaCost = costToPlay + 1;
       if(G.gold >= card.goldCost) canPlay = true;
@@ -2214,6 +2181,7 @@ const STATUS_EXPLAIN={
   nextAtkBuff:'💫 โจมตี+ ชั่วคราว: เพิ่มดาเมจให้การ์ด attack ใบต่อไปที่เล่น',
 };
 function showStatusTip(key){const txt=STATUS_EXPLAIN[key]; if(txt)toast(txt);}
+
 function renderPatQueue(){
   const b=G.battle,e=b.e;
   const pq=document.getElementById('pat-queue');pq.innerHTML='';
@@ -2221,10 +2189,9 @@ function renderPatQueue(){
   for(let i=0;i<4;i++){
     const nd=document.createElement('div');
     nd.className=i===0?'pat-node pat-now':'pat-node pat-next';
-    // เช็คว่า slot นี้เป็น ULTIMATE ของบอสไหม (slot 0 = เทิร์นถัดไป)
     let isUlt=false;
     if(e.ultEvery){
-      const turnsAway=e.ultCountdown-1-i; // เทิร์นที่ ult จะมาคือ ultCountdown-1 นับจาก slot0
+      const turnsAway=e.ultCountdown-1-i;
       if(turnsAway<=0&&((-turnsAway)%e.ultEvery===0))isUlt=true;
     }
     if(isUlt){
@@ -2240,7 +2207,6 @@ function renderPatQueue(){
       pq.appendChild(nd);
       continue;
     }
-    // pattern ปกติ — ต้องนับ patIdx โดยข้ามเทิร์น ult ที่อยู่ก่อนหน้า slot นี้
     let normalBefore=0;
     if(e.ultEvery){for(let j=0;j<i;j++){const ta=e.ultCountdown-1-j;if(!(ta<=0&&((-ta)%e.ultEvery===0)))normalBefore++;}}
     else normalBefore=i;
@@ -2260,6 +2226,7 @@ function renderPatQueue(){
     pq.appendChild(nd);
   }
 }
+
 let enStatPanelOpen=false;
 function toggleEnStatPanel(){enStatPanelOpen=!enStatPanelOpen;renderEnStatPanel();}
 function renderEnStatPanel(){
@@ -2334,7 +2301,6 @@ function showBossReward(){
     {icon:'⭐',text:'พรแห่งปัญญา',desc:'รับ Skill Point +3 ทันที',apply:()=>{giveSkillPoint(3);}},
     {icon:'💰',text:'พรแห่งทรัพย์',desc:'รับทอง +120',apply:()=>{G.gold+=120;toast('💰 +120 ทอง!');}},
   ];
-  // สุ่มเลือก 3 จาก 4
   const pick=shuffle([...buffs]).slice(0,3);
   pick.forEach(bf=>{
     const d=document.createElement('div');d.className='event-choice';
@@ -2346,7 +2312,6 @@ function showBossReward(){
 }
 function showEliteRelicChoice(gold){giveSkillPoint(1); showReward(gold);}
 function drawElitePack(n){
-  // Elite: การ์ดคุณภาพสูง — มีโอกาส Legendary มากขึ้น ไม่มี Common
   const res=[];for(let i=0;i<n;i++){
     const r=Math.random();
     const pool=r<0.12?getRarityPool('l'):r<0.45?getRarityPool('r'):getRarityPool('u');
@@ -2392,19 +2357,17 @@ function showReward(gold){
 }
 function skipReward(){afterNode();}
 function afterNode(){
-  G.battle=null; // ล้างสภาพการต่อสู้ที่จบแล้ว
+  G.battle=null;
   const node=G._pendingNode;
   if(node&&G.actMap){
-    // mark node ที่เพิ่งทำเสร็จ + ย้ายตำแหน่งผู้เล่นมาที่ node นี้
     const real=G.actMap.nodeMap[node.id];
     if(real){real.done=true;G.mapPos=node.id;}
     G._pendingNode=null;
-    // ถ้าเพิ่งฆ่าบอส = จบ act → ขึ้น act ใหม่
     if(node.type==='boss'){
-      G.player.hp=Math.min(G.player.maxHp,G.player.hp+Math.floor(G.player.maxHp*0.3)); // โบนัสจบ act
+      G.player.hp=Math.min(G.player.maxHp,G.player.hp+Math.floor(G.player.maxHp*0.3));
       toast(`🎉 จบ Act ${G.actNum}! ฟื้น HP บางส่วน`);
       G.actNum++;
-      G.actMap=null; // สร้างแผนใหม่ตอน showMap
+      G.actMap=null;
       if(G._postBossShop){G._postBossShop=false;G._inPostBossShop=true;showShop();return;}
       showMap();
       return;
@@ -2462,7 +2425,6 @@ function renderClassSelect(){
     c.appendChild(d);
   });
 }
-// [BACKUP] showMap/enterNode เดิม — เก็บไว้เผื่อย้อนกลับ
 function _legacyShowMap(){
   G.mapNodes=_legacyGenMap(G.floor);saveRun();
   const h=document.getElementById('map-h');const isBoss=G.floor%10===0;
@@ -2477,11 +2439,11 @@ function _legacyShowMap(){
 // ====== แสดงแผนทั้ง act ======
 const NODE_ICON={battle:'⚔️',elite:'💀',shop:'🏪',event:'❓',rest:'🏕️',treasure:'💰',boss:'👑',start:'▶'};
 const MYSTERY_TYPES=['event','treasure','shop']; // โหนดที่โชว์เป็น "?"
+
 function showMap(){
-  // สร้างแผนถ้ายังไม่มี (act ปัจจุบัน)
   if(!G.actMap||G.actMap.act!==G.actNum){
     G.actMap=genActMap(G.actNum);
-    G.mapPos='start';        // เริ่มที่จุด start
+    G.mapPos='start';
     G.actMap.nodeMap.start.done=true;
   }
   saveRun();
@@ -2491,11 +2453,15 @@ function showMap(){
   document.getElementById('map-hp').textContent=G.player.hp;
   document.getElementById('map-mhp').textContent=G.player.maxHp;
   renderMapRelics('map-relics');
-  renderActMap();
+  
+  // 🛠️ แก้ไขที่ 1: สลับให้โชว์หน้าจอก่อน เพื่อให้ดึงค่าความกว้าง (clientWidth) ของจอได้ถูกต้อง
   showSc('sc-map');
+  renderActMap();
 }
+
 function currentDepth(){const cur=G.actMap&&G.actMap.nodeMap[G.mapPos];return cur?cur.f:0;}
 function reachableFrom(id){const cur=G.actMap.nodeMap[id];return new Set(cur?cur.next:[]);}
+
 function renderActMap(){
   const container=document.getElementById('map-rows');
   container.innerHTML='';
@@ -2507,13 +2473,24 @@ function renderActMap(){
   wrap.style.cssText=`position:relative;width:100%;height:${totalH}px`;
   const colX=col=>20+(col/(ACT_WIDTH-1))*(W-40);
   const rowY=f=>totalH-TOP_PAD-f*ROW_H;
+  
   // เส้นเชื่อม
-  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.setAttribute('viewBox',`0 0 ${W} ${totalH}`);
-  svg.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1';
   let edges='';
-  map.rows.forEach(row=>row.forEach(node=>{node.next.forEach(nid=>{const t=map.nodeMap[nid];if(!t)return;const x1=colX(node.col),y1=rowY(node.f),x2=colX(t.col),y2=rowY(t.f);const onPath=node.done&&(node.id===G.mapPos||t.id===G.mapPos||t.done);edges+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${onPath?'#ffd70066':'#2e2e5a'}" stroke-width="2"/>`;});}));
-  svg.innerHTML=edges;wrap.appendChild(svg);
+  map.rows.forEach(row=>row.forEach(node=>{
+    node.next.forEach(nid=>{
+      const t=map.nodeMap[nid];if(!t)return;
+      const x1=colX(node.col),y1=rowY(node.f),x2=colX(t.col),y2=rowY(t.f);
+      const onPath=node.done&&(node.id===G.mapPos||t.id===G.mapPos||t.done);
+      edges+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${onPath?'#ffd70066':'#2e2e5a'}" stroke-width="2"/>`;
+    });
+  }));
+
+  // 🛠️ แก้ไขที่ 2: ห่อ SVG ไว้ใน HTML div ก่อนใช้ innerHTML เพื่อป้องกันบั๊กบนบางเบราว์เซอร์
+  const svgContainer = document.createElement('div');
+  svgContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1';
+  svgContainer.innerHTML = `<svg viewBox="0 0 ${W} ${totalH}" style="width:100%;height:100%">${edges}</svg>`;
+  wrap.appendChild(svgContainer);
+
   // โหนด
   const reach=reachableFrom(G.mapPos);
   map.rows.forEach(row=>row.forEach(node=>{
@@ -2523,7 +2500,6 @@ function renderActMap(){
     el.className=`amap-node ${cls}`;
     el.style.cssText=`position:absolute;left:${colX(node.col)}px;top:${rowY(node.f)}px`;
     el.textContent=node.type==='start'?'▶':(isMystery?'?':(NODE_ICON[node.type]||'?'));
-    // สถานะ
     if(node.id===G.mapPos)el.classList.add('amap-current');
     else if(node.done)el.classList.add('amap-visited');
     else if(reach.has(node.id))el.classList.add('amap-reach');
@@ -2532,15 +2508,15 @@ function renderActMap(){
     wrap.appendChild(el);
   }));
   container.appendChild(wrap);
-  // เลื่อนไปที่ตำแหน่งปัจจุบัน
+  
   setTimeout(()=>{const cur=wrap.querySelector('.amap-current');if(cur)cur.scrollIntoView({block:'center',behavior:'smooth'});},50);
 }
+
 function tryEnterMapNode(node){
   const reach=reachableFrom(G.mapPos);
   if(!reach.has(node.id))return;
   G._pendingNode=node;
   G.floor=(G.actNum-1)*ACT_FLOORS+node.f;
-  // Daily: reseed ตาม node เพื่อให้ผล (event/treasure/shop/สู้) เหมือนกันทุกคน ไม่ขึ้นกับลำดับการเดิน
   if(_dailyActive){
     let h=dateSeed();
     for(const ch of (node.id+'_'+G.actNum))h=Math.imul(h^ch.charCodeAt(0),0x01000193);
@@ -2549,7 +2525,6 @@ function tryEnterMapNode(node){
   enterNode(node);
 }
 function enterNode(node){
-  // กันโกง: เข้าห้องสู้ลบ save ทันที
   if(node.type==='battle'||node.type==='elite'||node.type==='boss'){clearRun();}
   switch(node.type){
     case'battle': startBattle(false);break;
@@ -2599,6 +2574,7 @@ function resolveEvent(choice){
   }
   if(ef==='getRelic'){grantRelic();}
   if(ef==='pray30'){doHealOutsideBattle(30);toast('🙏 ฟื้น 30 HP');}
+  if(ef==='pray30'){doHealOutsideBattle(30);toast('🙏 ฟื้น 30 HP');}
   if(ef==='cursedRelic'){grantRelic();const cu=DB.find(c=>c.type==='curse');if(cu)G.deck.push({...cu});toast('🎁 ได้ Relic แต่ได้ Curse 1 ใบ');}
   if(ef==='chestGold'){G.gold+=100;toast('💰 +100 ทอง!');}
   if(ef==='bloodPact'){G.player.maxHp=Math.max(10,G.player.maxHp-10);G.player.hp=Math.min(G.player.hp,G.player.maxHp);grantRelic('r');toast('🩸 HP สูงสุด -10 แต่ได้ Relic หายาก!');}
@@ -2647,7 +2623,7 @@ function showShop(){
   document.getElementById('shop-h').textContent=G._inPostBossShop?'🏪 Shop (รางวัลหลังบอส!)':'🏪 Shop';
   document.getElementById('sh-gold').textContent=G.gold;
   const stock=[];
-  const vipDiscount=hasRelic('vipMember')?1-0.1*hasRelic('vipMember'):1; 
+  const vipDiscount=hasRelic('vipMember')?1-0.1*hasRelic('vipMember'):1;
   for(let i=0;i<4;i++){
     const pool=Math.random()<0.08?getRarityPool('r'):Math.random()<0.35?getRarityPool('u'):getRarityPool('c');
     const card={...pool[Math.floor(Math.random()*pool.length)]};
@@ -2968,13 +2944,10 @@ tap(document.getElementById('sound-btn'),toggleSound);
 document.getElementById('sound-btn').textContent=_soundOn?'🔊':'🔇';
 tap(document.getElementById('lb-tab-all'),()=>setLBMode('all'));
 function computeDailyInfo(){
-  // คำนวณข้อมูลของวันนี้แบบ deterministic โดยไม่แตะ state เกมจริง
   const seed=dateSeed();
-  // class ของวันนี้ (ใช้ generator แยก ไม่กระทบ Math.random global)
   let s=seed|0;
   const rng=()=>{s|=0;s=(s+0x6D2B79F5)|0;let t=Math.imul(s^(s>>>15),1|s);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};
   const clsIdx=Math.floor(rng()*CLASSES.length);
-  // สแกน map 9 ชั้นแรกของ act 1 ว่าเจอ node อะไรบ้าง (ใช้ seed เดียวกับ genMap)
   function floorPreview(floor){
     let fs=(seed*131+floor*977)|0;
     const fr=()=>{fs|=0;fs=(fs+0x6D2B79F5)|0;let t=Math.imul(fs^(fs>>>15),1|fs);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};
@@ -2985,7 +2958,6 @@ function computeDailyInfo(){
     if(opts.length===2&&opts[0]==='battle'&&opts[1]==='battle'&&floor>1)opts[1]='elite';
     return opts;
   }
-  // นับ node พิเศษใน 9 ชั้นแรก
   const counts={event:0,shop:0,rest:0,treasure:0,elite:0};
   for(let f=1;f<=9;f++){floorPreview(f).forEach(t=>{if(counts[t]!==undefined)counts[t]++;});}
   return{clsIdx,cls:CLASSES[clsIdx],counts,seed};
