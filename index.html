@@ -1642,7 +1642,14 @@ function playCard(idx){
     }
   }
   if(card.draw)draw(card.draw);
-  if(card.manaAdd)b.mana+=card.manaAdd;
+  
+  // 🛠️ แก้ไข: ตอนที่บวกมานา ให้แสดงข้อความแจ้งเตือนด้วย
+  if(card.manaAdd){
+    b.mana+=card.manaAdd;
+    toast(`💎 +${card.manaAdd} มานา!`);
+    log(`💎 ${card.name}: ได้รับ ${card.manaAdd} มานา`, 'combo');
+  }
+  
   if(card.atkBuff)b.atkBuff+=card.atkBuff;
   if(card.tempAtk)b.tempAtk+=card.tempAtk;
   if(card.counterAdd)b.counterBonus+=card.counterAdd;
@@ -2149,7 +2156,21 @@ function renderBattle(){
   else bw.style.display='none';
   
   const mr=document.getElementById('mana-row');mr.innerHTML='';
-  for(let i=0;i<b.maxMana;i++){const d=document.createElement('div');d.className=`md ${i<b.mana?'mf':'me'}`;mr.appendChild(d);}
+  
+  // 🛠️ แก้ไข: ให้แสดงจุดมานาตามจำนวนมานาที่มีจริงๆ (แม้จะเกินหลอด Max)
+  const displayMana = Math.max(b.maxMana, b.mana);
+  for(let i=0;i<displayMana;i++){
+    const d=document.createElement('div');
+    d.className=`md ${i<b.mana?'mf':'me'}`;
+    
+    // ไฮไลต์พิเศษ! ถ้าเป็น "มานาโบนัส" ที่ล้นหลอดเกิน Max ให้แสดงเป็นสีฟ้าสว่าง
+    if(i >= b.maxMana && i < b.mana) {
+        d.style.background = 'radial-gradient(circle at 35% 30%, #88ddff, #0088ff)';
+        d.style.boxShadow = '0 0 8px #0088ffaa, inset 0 1px 1px rgba(255,255,255,.8)';
+        d.style.border = '1px solid #0055cc';
+    }
+    mr.appendChild(d);
+  }
   
   const pc=[];
   if(b.permDef>0)pc.push(`<span class="chip" data-stip="permDef">🔰${b.permDef}</span>`);
