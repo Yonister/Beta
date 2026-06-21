@@ -2699,6 +2699,7 @@ function renderShop(){
   const isFull=G.player.hp>=G.player.maxHp;
   healBtn.textContent=isFull?`เต็มแล้ว (${G.player.hp}/${G.player.maxHp})`:`ฟื้น 10 HP (${G.player.hp}/${G.player.maxHp})`;
   healBtn.disabled=isFull; healBtn.style.opacity=isFull?'.5':'1';
+  
   const sc=document.getElementById('sh-cards');sc.innerHTML='';
   G.shopStock.forEach((card,i)=>{
     const w=document.createElement('div');w.className=`sw${card.sold?' sold':''}`;
@@ -2706,27 +2707,26 @@ function renderShop(){
     p.textContent=card.sold?'ขายแล้ว':`${card.price}💰`;
     w.appendChild(el);w.appendChild(p);if(!card.sold)tap(w,()=>buyCard(i));sc.appendChild(w);
   });
+  
   const sr=document.getElementById('sh-relics');sr.innerHTML='';
   const skillPtItem=document.createElement('div');
   skillPtItem.className='relic-item';
   skillPtItem.innerHTML=`<div class="relic-icon">⭐</div><div class="relic-name">Skill Point</div><div class="relic-desc">ซื้อ 1 Skill Point เพื่อปลดสกิล</div><div class="relic-price">120💰</div>`;
   tap(skillPtItem,()=>buySkillPoint()); sr.appendChild(skillPtItem);
+  
   const ug=document.getElementById('sh-upgrade');ug.innerHTML='';
   G.deck.filter(c=>!c.upgraded&&c.type!=='curse').slice(0,6).forEach(card=>{
-    // 🛠️ แก้ไข: สร้างกรอบห่อนอกสุด เพื่อกันไม่ให้ Layout ตีกัน
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:inline-flex; flex-direction:column; align-items:center; margin: 0 4px 14px 4px; vertical-align:top;';
     
-    // กรอบห่อตัวการ์ด + ป้ายราคา
     const w=document.createElement('div');
     w.className='sw';
-    w.style.marginBottom='16px'; // ดันพื้นที่ด้านล่างเผื่อให้ป้ายราคา ไม่ให้ไปทับข้อความ
+    w.style.marginBottom='16px'; 
     
     const el=cardEl(card);
     const p=document.createElement('div');p.className='sprice';p.textContent='80💰';
     w.appendChild(el);w.appendChild(p);
     
-    // ข้อความพรีวิว (ปรับให้ขึ้นบรรทัดใหม่เพื่อให้อ่านง่ายและไม่โดนบัง)
     const prev=document.createElement('div');
     prev.style.cssText='font-size:.65em;color:#88cc88;text-align:center;max-width:105px;line-height:1.4;';
     prev.innerHTML=upgradePreview(card).replace(/ \| /g, '<br>');
@@ -2734,6 +2734,14 @@ function renderShop(){
     wrap.appendChild(w);wrap.appendChild(prev);
     tap(wrap,()=>upgradeCard(card));
     ug.appendChild(wrap);
+  });
+  
+  // 🛠️ ส่วนนี้คือส่วนของการลบการ์ดที่หายไปครับ นำกลับมาใส่ให้ครบแล้ว
+  const rm=document.getElementById('sh-remove');rm.innerHTML='';
+  G.deck.slice(0,8).forEach(card=>{
+    const w=document.createElement('div');w.className='sw';const el=cardEl(card);
+    const p=document.createElement('div');p.className='sprice';p.textContent='30💰';
+    w.appendChild(el);w.appendChild(p);tap(w,()=>removeCard(card));rm.appendChild(w);
   });
 }
 function buyCard(i){
