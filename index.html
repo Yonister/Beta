@@ -158,16 +158,40 @@ catch(e){ console.warn('Firebase init failed',e); }
   .bt-log{flex:1;min-height:40px;max-height:80px;overflow-y:auto;font-size:.74em;color:#9080b0;text-align:center;padding:6px;line-height:1.5}
   .bt-pstats{display:flex;justify-content:center;gap:18px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:9px;font-size:.92em;margin-bottom:8px}
   .bt-pstats b{color:var(--gold)}
-  .bt-hand{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;min-height:120px;margin-bottom:8px}
-  .bt-card{width:74px;height:104px;border-radius:10px;border:2px solid var(--line);background:linear-gradient(160deg,#241a4a,#160e30);
-    display:flex;flex-direction:column;align-items:center;padding:6px 4px;cursor:pointer;position:relative;transition:transform .12s}
+  .bt-hand{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;min-height:130px;margin-bottom:8px}
+  .bt-card{width:86px;height:124px;border-radius:8px;border:2px solid var(--line);
+    background:linear-gradient(160deg,#2a1e52,#160e30);
+    display:flex;flex-direction:column;align-items:stretch;padding:5px 5px 4px;cursor:pointer;position:relative;
+    transition:transform .12s,box-shadow .12s;box-shadow:0 3px 8px rgba(0,0,0,.5)}
   .bt-card:active{transform:scale(.94)}
   .bt-card.playable{border-color:var(--gold)}
+  .bt-card.playable:hover{transform:translateY(-6px);box-shadow:0 8px 16px rgba(0,0,0,.6)}
   .bt-card.unplayable{opacity:.45}
-  .bt-card .c-cost{position:absolute;top:-6px;left:-6px;width:22px;height:22px;border-radius:50%;background:#3a6acc;border:2px solid #bfe0ff;color:#fff;font-size:.72em;font-weight:800;display:flex;align-items:center;justify-content:center}
-  .bt-card .c-name{font-size:.62em;font-weight:700;text-align:center;margin-top:8px;color:#e0d4ff}
-  .bt-card .c-desc{font-size:.54em;color:#9080b0;text-align:center;margin-top:auto;line-height:1.3}
-  .bt-card .c-type{position:absolute;bottom:3px;right:4px;font-size:.6em}
+  /* มานา gem มุมซ้ายบน */
+  .bt-card .c-cost{position:absolute;top:-7px;left:-7px;width:24px;height:24px;border-radius:50%;
+    background:#2a6ad0;border:2px solid #cfe8ff;color:#fff;font-size:.78em;font-weight:800;z-index:3;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+  .bt-card.curse .c-cost{background:#aa3366;border-color:#ff88aa}
+  /* ธาตุ มุมขวาบน */
+  .bt-card .c-elem{position:absolute;top:3px;right:4px;font-size:.78em;z-index:3;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+  /* ชื่อการ์ด (แถบบน) */
+  .bt-card .c-name{font-size:.56em;font-weight:800;text-align:center;color:#fff;
+    padding:2px 12px 2px 14px;line-height:1.15;letter-spacing:.2px;
+    text-shadow:0 1px 1px rgba(0,0,0,.7);min-height:1.7em;display:flex;align-items:center;justify-content:center}
+  .bt-card .c-star{color:#ffd24a;margin-left:1px}
+  /* art box กระดาษ */
+  .bt-card .c-art{height:42px;margin:1px 1px 3px;border:2px solid #18102e;border-radius:3px;
+    display:flex;align-items:center;justify-content:center;font-size:1.7em;
+    background:
+      repeating-linear-gradient(48deg,rgba(170,140,90,.07) 0 1px,transparent 1px 3px),
+      radial-gradient(ellipse at 40% 30%,#efe6cf,transparent 60%),
+      linear-gradient(160deg,#e8dcc0,#c8b890);
+    box-shadow:inset 0 0 8px rgba(90,60,30,.3);
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))}
+  /* คำอธิบาย */
+  .bt-card .c-desc{font-size:.5em;color:#c4b8e0;text-align:center;line-height:1.25;
+    flex:1;display:flex;align-items:center;justify-content:center;padding:0 1px}
   /* แถบสีบอกประเภทการ์ด (ซ้าย) */
   .bt-card{border-left-width:5px}
   .bt-card.t-attack{border-left-color:#c0392b}   /* แดง กายภาพ */
@@ -175,6 +199,12 @@ catch(e){ console.warn('Firebase init failed',e); }
   .bt-card.t-defense{border-left-color:#2e6db4}  /* ฟ้า บล็อก */
   .bt-card.t-skill{border-left-color:#3a9a4a}    /* เขียว ยูทิลิตี้ */
   .bt-card.t-curse{border-left-color:#7a3ac0}
+  /* แถบชื่อพื้นสีตามธาตุ */
+  .bt-card.t-attack .c-name{background:linear-gradient(180deg,#7a2030,#581828)}
+  .bt-card.t-magic .c-name{background:linear-gradient(180deg,#5a2080,#401858)}
+  .bt-card.t-defense .c-name{background:linear-gradient(180deg,#204a80,#15304f)}
+  .bt-card.t-skill .c-name{background:linear-gradient(180deg,#20603a,#15402a)}
+  .bt-card.t-curse .c-name{background:linear-gradient(180deg,#3a1a4a,#1a0a24)}
   /* ดูสำรับ */
   .deck-grid{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto;margin:6px 0}
   .deck-card{display:grid;grid-template-columns:auto 1fr auto;gap:6px 8px;align-items:center;
@@ -1765,17 +1795,26 @@ function renderBattleUI(){
   $('bt-maxmana').textContent=B.maxMana;
   // hand
   const hand=$('bt-hand'); hand.innerHTML='';
+  const ART={attack:'⚔️',magic:'🔥',defense:'🛡️',skill:'✨',curse:'💫'};
+  const ARTBY={strike:'🗡️',heavy:'🔨',slash:'⚔️',jab:'👊',flurry:'🌪️',bash:'🛡️',allin:'💥',reckless:'😡',vampire:'🩸',
+    guard:'🛡️',ironwall:'🧱',thorns:'🌵',bulwark:'🏰',
+    fireball:'🔥',poisondart:'🎯',ignite:'🔥',drain:'🧛',
+    potion:'🧪',quickdraw:'🎴',adrenaline:'⚡',echo:'🔊',daze:'💫'};
   B.hand.forEach((cid,i)=>{
     const card=PVP_CARDS[cid];
+    const baseId=cid.replace('★','');
     const isCurse=card.curse;
     const playable=isCurse || card.cost<=B.mana;
     const el=document.createElement('div');
     el.className='bt-card t-'+card.type+' '+(playable?'playable':'unplayable')+(isCurse?' curse':'')+(card.rarity?' r-'+card.rarity:'');
     const typeIcon={attack:'⚔️',defense:'🛡️',magic:'🔥',skill:'✨',curse:'💫'}[card.type]||'';
+    const art=ARTBY[baseId]||ART[card.type]||'❔';
+    const star=cid.indexOf('★')>=0?'<span class="c-star">★</span>':'';
     el.innerHTML=`<span class="c-cost">${isCurse?'✕':card.cost}</span>
-      <span class="c-name">${card.name}</span>
-      <span class="c-desc">${card.desc}</span>
-      <span class="c-type">${typeIcon}</span>`;
+      <span class="c-elem">${typeIcon}</span>
+      <span class="c-name">${card.name.replace(' ★','')}${star}</span>
+      <span class="c-art">${art}</span>
+      <span class="c-desc">${card.desc.replace(' (★อัปเกรด)','')}</span>`;
     if(playable) el.onclick=()=>onPlayCard(i);
     hand.appendChild(el);
   });
