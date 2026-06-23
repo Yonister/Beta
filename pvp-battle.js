@@ -63,7 +63,7 @@ const PVP_BOSS = {name:'Tower Lord',spr:'👹', hp:150, atk:13, pat:['atk','def'
 const PVP_STATS = {
   atk:  {id:'atk',  name:'⚔️ ATK',  per:'การ์ดโจมตีกาย +1 ดาเมจ/แต้ม',         max:10},
   hp:   {id:'hp',   name:'❤️ HP',   per:'เลือดสูงสุด +6/แต้ม',                  max:10},
-  def:  {id:'def',  name:'🛡️ DEF',  per:'เริ่มเทิร์นมีบล็อก +1/แต้ม',           max:10},
+  def:  {id:'def',  name:'🛡️ DEF',  per:'ลดดาเมจที่โดน 3%/แต้ม (สูงสุด 30%)',     max:10},
   int:  {id:'int',  name:'🔮 INT',  per:'เวท/ไฟ/พิษ +1/แต้ม',                   max:10},
   spd:  {id:'spd',  name:'💨 SPD',  per:'จั่วเพิ่มเทิร์นแรก +1 ใบ ทุก 2 แต้ม',  max:10},
   mana: {id:'mana', name:'💎 MANA', per:'มานาสูงสุด +1 ทุก 4 แต้ม (เพดาน +2)',  max:8},
@@ -93,8 +93,8 @@ function applyLoadout(B, loadout){
   B.atkBonus=(B.atkBonus||0)+(s.atk||0);
   // INT — โบนัสเวท/ไฟ/พิษ
   B.intBonus=(B.intBonus||0)+(s.int||0);
-  // DEF — เริ่มเทิร์นมีบล็อก +1/แต้ม
-  B.startBlock=(B.startBlock||0)+(s.def||0);
+  // DEF — ลดดาเมจที่เข้าตัวเป็น % (3%/แต้ม เพดาน 30%) — สเกลกับดาเมจศัตรู ไม่ตันค่าตายตัว
+  B._defReduce=Math.min(0.30, (s.def||0)*0.03);
   // SPD — จั่วเพิ่มเทิร์นแรก +1 ใบ ทุก 2 แต้ม
   B._wealthDraw=(B._wealthDraw||0)+Math.floor((s.spd||0)/2);
   // MANA — +1 ทุก 4 แต้ม เพดาน +2
@@ -113,6 +113,15 @@ function pvpStarterDeck(){
 }
 
 /* ---------- Battle state factory ---------- */
+/* ---------- Dynamic Floor Modifiers (กฎพิเศษประจำชั้น — mirror ทุกคน) ---------- */
+const FLOOR_MODIFIERS = {
+  4:  {id:'firefloor', ic:'🔥', name:'พื้นที่ไฟลุก',  desc:'ผู้เล่นและศัตรูเริ่มเทิร์นด้วยไฟติด 2'},
+  9:  {id:'manadense', ic:'💎', name:'มานาหนาแน่น',  desc:'มานาสูงสุด +1 ทั้งด่าน — เล่นการ์ดได้รัวขึ้น'},
+  14: {id:'noheal',    ic:'🚫', name:'ห้ามรักษากาย',  desc:'งดผลฮีลและดูดเลือด 100% — ต้องใช้โล่รับ'},
+  17: {id:'doubledmg', ic:'⚡', name:'พลังทวีคูณ',    desc:'ดาเมจที่ดีลใส่ศัตรู ×1.5 (แต่ระวังศัตรูแรงด้วย)'},
+};
+function floorModifier(floor){ return FLOOR_MODIFIERS[floor] || null; }
+
 function createBattle(seed, floor, customDeck, sabotage){
   // deterministic enemy pick from shared seed + floor (mirror!)
   const rng = mulberryFrom((seed||1) * 131 + floor * 977);
@@ -140,7 +149,12 @@ function createBattle(seed, floor, customDeck, sabotage){
     for(let i=0;i<sabotage.curseCards;i++) baseDeck.push('daze');
   }
   const deck = shuffleSeeded(baseDeck, rng);
-  return {
+  // SABOTAGE: เผาการ์ด — สุ่มลบการ์ดบนกองจั่ว 1 ใบ
+  if(sabotage && sabotage.cardBurn && deck.length>0){
+    deck.shift();   // ลบใบบนสุด (กองสับแล้ว = สุ่มอยู่แล้ว)
+  }
+  const mod = floorModifier(floor);
+  const B = {
     floor, enemy,
     maxMana: 3, mana: 3,
     php: null, pmaxHp: null,
@@ -151,8 +165,14 @@ function createBattle(seed, floor, customDeck, sabotage){
     // sabotage flags
     _noBlock: !!(sabotage && sabotage.noBlock),   // เล่นการ์ดบล็อกไม่ได้
     _weaken: !!(sabotage && sabotage.weaken),     // ตีเบาลง + โดนแรงขึ้น
+    _blind: !!(sabotage && sabotage.blind),       // มองไม่เห็นท่าศัตรู 2 เทิร์นแรก
+    // floor modifier
+    _mod: mod ? mod.id : null,
     _rng: rng,
   };
+  // มานาหนาแน่น (ชั้น 9): มานาสูงสุด +1
+  if(B._mod==='manadense'){ B.maxMana=4; B.mana=4; }
+  return B;
 }
 
 /* ---------- Seeded RNG helpers ---------- */
@@ -195,6 +215,14 @@ function B_startTurn(B){
   let n = 5;
   if(B._wealthDraw && B.turn===1) n += B._wealthDraw;
   B_drawCard(B, n);
+  // === Floor modifiers (เทิร์นแรก) ===
+  if(B.turn===1){
+    // 🔥 ไฟลุก — ผู้เล่นและศัตรูติดไฟ 2
+    if(B._mod==='firefloor'){
+      B._playerBurn=(B._playerBurn||0)+2;
+      B.enemy.burn=(B.enemy.burn||0)+2;
+    }
+  }
 }
 function B_playCard(B, handIdx){
   const cid = B.hand[handIdx];
@@ -224,12 +252,15 @@ function B_playCard(B, handIdx){
     if(B._weaken) bonus -= 3;                            // SABOTAGE: อ่อนแอ ตีเบาลง -3
     let mult = 1;
     if(B._echo && (card.type==='attack'||card.type==='magic')){ mult = 2; B._echo = false; log.push('🔊 ×2!'); }
+    if(B._mod==='doubledmg') mult *= 1.5;               // ⚡ พลังทวีคูณ
     let dealtTotal = 0;
-    for(let h=0; h<hits; h++) dealtTotal += B_dealToEnemy(B, Math.max(1,(card.dmg + bonus))*mult, log);
-    // lifesteal: ฟื้นเท่าดาเมจที่ดีลจริง
-    if(card.lifesteal && B.php!=null){
+    for(let h=0; h<hits; h++) dealtTotal += B_dealToEnemy(B, Math.max(1,Math.round((card.dmg + bonus)*mult)), log);
+    // lifesteal: ฟื้นเท่าดาเมจที่ดีลจริง (ห้ามฮีล = ไม่ฟื้น)
+    if(card.lifesteal && B.php!=null && B._mod!=='noheal'){
       B.php = Math.min(B.pmaxHp, B.php + dealtTotal);
       log.push(`🩸 ฟื้น ${dealtTotal}`);
+    } else if(card.lifesteal && B._mod==='noheal'){
+      log.push('🚫 ห้ามรักษา! ดูดเลือดไม่ติด');
     }
   }
   if(card.block){
@@ -238,7 +269,10 @@ function B_playCard(B, handIdx){
   }
   if(card.thorns){ B.thorns = (B.thorns||0) + card.thorns; log.push(`🌵 หนาม ${card.thorns}`); }
   if(card.keepBlock){ B._keepBlock = true; }
-  if(card.heal){ B.php = Math.min(B.pmaxHp, B.php + card.heal); log.push(`ฟื้น ${card.heal}`); }
+  if(card.heal){
+    if(B._mod==='noheal'){ log.push('🚫 ห้ามรักษา! ฮีลไม่ติด'); }
+    else { B.php = Math.min(B.pmaxHp, B.php + card.heal); log.push(`ฟื้น ${card.heal}`); }
+  }
   if(card.manaGain){ B.mana += card.manaGain; log.push(`มานา +${card.manaGain}`); }
   if(card.draw){ B_drawCard(B, card.draw); log.push(`หยิบ ${card.draw}`); }
   if(card.burn){ B.enemy.burn = (B.enemy.burn||0) + card.burn + (B.intBonus||0); log.push(`ไฟ ${card.burn+(B.intBonus||0)}`); }
@@ -275,6 +309,12 @@ function B_endTurn(B){
   // discard hand
   B.disc = B.disc.concat(B.hand);
   B.hand = [];
+  // 🔥 ไฟลุก — ผู้เล่นโดนไฟกัดตอนจบเทิร์น
+  if(B._playerBurn > 0 && B.php!=null){
+    B.php = Math.max(0, B.php - B._playerBurn);
+    B._playerBurn = Math.max(0, B._playerBurn - 1);
+    if(B.php <= 0){ B.over = true; B.won = false; return {enemyActions:[{type:'burn',dmg:1}]}; }
+  }
   // enemy burn tick
   if(B.enemy.burn > 0){
     B.enemy.hp = Math.max(0, B.enemy.hp - B.enemy.burn);
@@ -304,6 +344,8 @@ function B_enemyAct(B){
     // rage: ยิ่งโดนตีมา ยิ่งแรง
     if(move === 'rage') dmg += Math.floor((e._dmgTaken||0) / 8);
     if(B._weaken) dmg = Math.round(dmg * 1.5);   // SABOTAGE: อ่อนแอ โดนแรงขึ้น 50%
+    // DEF stat: ลดดาเมจเป็น % (สเกลกับดาเมจ ไม่ตัน)
+    if(B._defReduce>0) dmg = Math.max(1, Math.round(dmg * (1 - B._defReduce)));
     if(B.block > 0){
       const absorbed = Math.min(B.block, dmg);
       B.block -= absorbed; dmg -= absorbed;
