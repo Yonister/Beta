@@ -202,6 +202,35 @@ catch(e){ console.warn('Firebase init failed',e); }
   .rv-bar{flex:1;height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden}
   .rv-fill{height:100%;border-radius:4px;transition:width .4s}
   .rv-v{font-size:.7em;font-weight:700;color:#c0b0e0;width:18px;text-align:right}
+  /* Rest stop ชั้น 11 */
+  .rest-options{display:flex;flex-direction:column;gap:10px;margin:14px 0}
+  .rest-opt{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;transition:border-color .2s}
+  .rest-opt:active{border-color:var(--gold)}
+  .ro-ic{font-size:1.8em;flex:0 0 auto}
+  .ro-name{font-weight:700;font-size:.95em;color:#e0d4ff}
+  .ro-desc{font-size:.74em;color:var(--purple);margin-top:2px;line-height:1.3}
+  /* Kill Feed / Event Log */
+  #feed-box{position:fixed;top:54px;right:8px;z-index:9300;display:flex;flex-direction:column;gap:5px;align-items:flex-end;pointer-events:none;max-width:80%}
+  .feed-item{background:linear-gradient(90deg,rgba(20,12,40,.6),rgba(40,20,70,.95));border-right:3px solid #b060ff;
+    border-radius:6px 0 0 6px;padding:6px 12px;font-size:.76em;color:#f0e0ff;font-weight:600;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);animation:feedin .4s ease}
+  .feed-item.out{animation:feedout .4s ease forwards}
+  @keyframes feedin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes feedout{to{opacity:0;transform:translateX(30px)}}
+  .feed-item.emote{font-size:1em;border-right-color:#ffd060;background:linear-gradient(90deg,rgba(40,30,10,.6),rgba(70,55,20,.95))}
+  /* Emote bar */
+  .emote-bar{display:flex;align-items:center;gap:4px;margin-top:10px;flex-wrap:wrap;justify-content:center;
+    background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:6px}
+  .emote-lbl{font-size:.8em;opacity:.6;margin-right:2px}
+  .emote-btn{font-size:1.3em;background:none;border:none;cursor:pointer;padding:3px 5px;border-radius:8px;line-height:1}
+  .emote-btn:active{background:rgba(176,96,255,.25);transform:scale(1.2)}
+  .spectate-banner{background:linear-gradient(90deg,#3a1020,#2a0a18);border:1px solid #c0392b;border-radius:10px;
+    padding:12px;text-align:center;color:#ff9090;font-weight:700;font-size:.9em;margin-bottom:10px;animation:warnblink 2s ease-in-out infinite}
+  .reconnect-banner{background:linear-gradient(90deg,#1a2e1a,#0f240f);border:1px solid #3a9a4a;border-radius:12px;
+    padding:14px;margin:0 0 14px;text-align:center;animation:feedin .4s ease}
+  .rcb-txt{color:#90e0a0;font-size:.9em;margin-bottom:10px}
+  .rcb-btns{display:flex;gap:8px;justify-content:center}
+  .rcb-btns .btn{flex:1;max-width:160px}
   .bt-timer{font-size:.8em;font-weight:700;color:#90d0ff;background:rgba(46,109,180,.2);border:1px solid #2e6db4;border-radius:12px;padding:3px 10px}
   .bt-timer.urgent{color:#ff8080;background:rgba(192,57,43,.25);border-color:#c0392b;animation:warnblink .6s ease-in-out infinite}
   .bt-card.curse{border-color:#aa3366;background:linear-gradient(160deg,#3a1020,#200810)}
@@ -323,6 +352,15 @@ catch(e){ console.warn('Firebase init failed',e); }
       <div class="badge">PvP · Stage 0 · Mirror Sync Test</div>
     </div>
 
+    <!-- reconnect banner -->
+    <div class="reconnect-banner" id="reconnect-banner" style="display:none">
+      <div class="rcb-txt">🔄 คุณยังอยู่ในเกมห้อง <b id="reconnect-code">----</b></div>
+      <div class="rcb-btns">
+        <button class="btn btn-gold" id="btn-reconnect">กลับเข้าเกม</button>
+        <button class="btn btn-dim" id="btn-reconnect-no">ไม่ใช่</button>
+      </div>
+    </div>
+
     <div class="card-box">
       <h2>🆕 สร้างห้องใหม่</h2>
       <label>ชื่อของคุณ</label>
@@ -411,6 +449,42 @@ catch(e){ console.warn('Firebase init failed',e); }
     <button class="btn btn-dim" id="reward-skip" style="margin-top:14px">ข้าม (ไม่เอาการ์ด)</button>
   </div>
 
+  <!-- ===== SCREEN: REST STOP (ชั้น 11 จุดพักแรม) ===== -->
+  <div class="scr" id="scr-rest">
+    <div class="draft-head">
+      <div class="draft-title">🏕️ จุดพักแรม — ชั้น 11</div>
+    </div>
+    <div class="draft-step">เลือกทำได้ <b>1 อย่าง</b> แล้วไปต่อ</div>
+    <div class="rest-options">
+      <div class="rest-opt" id="rest-upgrade">
+        <div class="ro-ic">⬆️</div>
+        <div class="ro-body"><div class="ro-name">อัปเกรดการ์ด</div><div class="ro-desc">เพิ่มพลังการ์ด 1 ใบในเด็ค (+ดาเมจ/บล็อก)</div></div>
+      </div>
+      <div class="rest-opt" id="rest-remove">
+        <div class="ro-ic">🗑️</div>
+        <div class="ro-body"><div class="ro-name">ลบการ์ด</div><div class="ro-desc">เอาการ์ดที่ไม่ต้องการออก 1 ใบ ให้เด็คกระชับ</div></div>
+      </div>
+      <div class="rest-opt" id="rest-reset">
+        <div class="ro-ic">🔄</div>
+        <div class="ro-body"><div class="ro-name">รีเซ็ตสเตตัส</div><div class="ro-desc">กระจาย 10 แต้มใหม่ทั้งหมด</div></div>
+      </div>
+    </div>
+    <!-- sub-panel: เลือกการ์ด (อัป/ลบ) -->
+    <div id="rest-cardpick" style="display:none">
+      <div class="draft-step" id="rest-cardpick-label">เลือกการ์ด</div>
+      <div class="deck-grid" id="rest-card-list"></div>
+      <button class="btn btn-dim" id="rest-back" style="margin-top:8px">← กลับ</button>
+    </div>
+    <!-- sub-panel: รีเซ็ตสเตตัส -->
+    <div id="rest-statpanel" style="display:none">
+      <div class="draft-step">กระจาย <b id="rest-pts-left">10</b> แต้มใหม่</div>
+      <div class="stat-list" id="rest-stat-list"></div>
+      <button class="btn btn-gold" id="rest-stat-confirm">ยืนยันสเตตัส</button>
+      <button class="btn btn-dim" id="rest-back2" style="margin-top:8px">← กลับ</button>
+    </div>
+    <button class="btn btn-dim" id="rest-skip" style="margin-top:14px">ข้าม (ไปต่อเลย)</button>
+  </div>
+
   <!-- ===== SCREEN: REVEAL (รู้เขารู้เรา) ===== -->
   <div class="scr" id="scr-reveal">
     <div class="draft-head">
@@ -445,7 +519,12 @@ catch(e){ console.warn('Firebase init failed',e); }
       </div>
     </div>
 
-    <div class="sim-controls" style="border-style:solid;border-color:var(--gold)">
+    <!-- spectate banner (เมื่อตาย) -->
+    <div class="spectate-banner" id="spectate-banner" style="display:none">
+      💀 คุณตกหอคอยแล้ว — กำลังส่องดูผู้รอดชีวิต 👀
+    </div>
+
+    <div class="sim-controls" id="race-controls" style="border-style:solid;border-color:var(--gold)">
       <div class="lbl" style="color:var(--gold)">⚔️ ชั้นถัดไป: <b id="next-floor">1</b> — ศัตรูสุ่มจาก seed เดียวกัน (mirror)</div>
       <div class="sim-row">
         <button class="btn btn-gold" id="btn-fight">⚔️ เข้าต่อสู้ชั้น <span id="fight-floor">1</span></button>
@@ -453,6 +532,17 @@ catch(e){ console.warn('Firebase init failed',e); }
       <button class="btn btn-dim" id="btn-darkmarket" style="margin-top:8px">🕯️ ร้านค้ามืด (ซื้อของแกล้ง)</button>
       <button class="btn btn-dim" id="btn-bag" style="margin-top:8px">🎒 กระเป๋า (ใช้ของแกล้ง) <span id="bag-count"></span></button>
       <button class="btn btn-dim" id="btn-deck" style="margin-top:8px">🃏 ดูสำรับการ์ด</button>
+      <div class="emote-bar" id="emote-bar">
+        <span class="emote-lbl">💬</span>
+        <button class="emote-btn" data-e="😈">😈</button>
+        <button class="emote-btn" data-e="😂">😂</button>
+        <button class="emote-btn" data-e="😎">😎</button>
+        <button class="emote-btn" data-e="😭">😭</button>
+        <button class="emote-btn" data-e="🔥">🔥</button>
+        <button class="emote-btn" data-e="🐌">🐌</button>
+        <button class="emote-btn" data-e="👑">👑</button>
+        <button class="emote-btn" data-e="💀">💀</button>
+      </div>
     </div>
 
     <div class="status-line" id="race-status"><span class="conn" id="race-conn"></span><span id="race-conn-txt">sync ทำงาน</span></div>
@@ -615,14 +705,26 @@ function joinRoom(){
     const data=snap.val();
     const players=data.players||{};
     const count=Object.keys(players).length;
-    // allow rejoin if already in room
-    if(count>=MAX_PLAYERS && !players[myId()]){ $('home-err').textContent='ห้องเต็มแล้ว ('+MAX_PLAYERS+' คน)'; return; }
-    ME={ id:myId(), name, floor:0, hp:100, maxHp:100, ready:false, gold:0 };
-    ROOM={ code, ref, seed:data.sharedSeed, isHost:false };
-    ref.child('players/'+ME.id).set({
-      name:ME.name, floor:0, hp:100, maxHp:100, ready:false, host:false,
-      lastHeartbeat:firebase.database.ServerValue.TIMESTAMP
-    }).then(()=>enterLobby());
+    const existing=players[myId()];   // เคยอยู่ห้องนี้ไหม
+    if(count>=MAX_PLAYERS && !existing){ $('home-err').textContent='ห้องเต็มแล้ว ('+MAX_PLAYERS+' คน)'; return; }
+    ROOM={ code, ref, seed:data.sharedSeed, isHost:!!(existing&&existing.host) };
+    if(existing && data.status!=='lobby'){
+      // === RECONNECT: กลับเข้าเกมที่กำลังเล่น → กู้สถานะเดิม ===
+      ME={ id:myId(), name, floor:existing.floor||0, hp:existing.hp!=null?existing.hp:100,
+           maxHp:existing.maxHp||100, ready:true, gold:existing.gold||0 };
+      // กู้ build (stats) จาก RTDB ถ้ามี
+      if(existing.stats) MY_LOADOUT.stats=existing.stats;
+      DRAFT._done=true; DRAFT._gameId=data.startTime; REVEAL_SHOWN=true;
+      ref.child('players/'+ME.id).update({ name:ME.name, disconnected:null, lastHeartbeat:firebase.database.ServerValue.TIMESTAMP })
+        .then(()=>{ enterLobby(); toast('🔄 กลับเข้าเกมแล้ว!'); });
+    } else {
+      // เข้าใหม่ปกติ (หรือ rejoin ตอนยังอยู่ lobby)
+      ME={ id:myId(), name, floor:0, hp:100, maxHp:100, ready:false, gold:0 };
+      ref.child('players/'+ME.id).set({
+        name:ME.name, floor:0, hp:100, maxHp:100, ready:false, host:!!(existing&&existing.host),
+        lastHeartbeat:firebase.database.ServerValue.TIMESTAMP
+      }).then(()=>enterLobby());
+    }
   }).catch(e=>{ $('home-err').textContent='เข้าห้องไม่สำเร็จ: '+e.message; });
 }
 
@@ -633,8 +735,29 @@ function enterLobby(){
   attachRoomListener();
   startHeartbeat();
   listenMySabotage();
-  // auto-leave cleanup if tab closes
-  ROOM.ref.child('players/'+ME.id).onDisconnect().remove();
+  listenEvents();
+  // จำห้องไว้ (สำหรับ reconnect ตอนเปิดใหม่)
+  localStorage.setItem('ct_pvp_room', ROOM.code);
+  // ตอน lobby: หลุด = ลบทิ้ง / ตอนเล่น: เก็บ slot ไว้ (mark disconnected) ให้กลับเข้าได้
+  updateDisconnectBehavior();
+}
+// ปรับพฤติกรรม onDisconnect ตามสถานะเกม
+function updateDisconnectBehavior(){
+  if(!ROOM.ref) return;
+  const meRef=ROOM.ref.child('players/'+ME.id);
+  meRef.onDisconnect().cancel();
+  ROOM.ref.child('status').get().then(s=>{
+    const st=s.val();
+    if(st && st!=='lobby'){
+      // กำลังเล่น → ไม่ลบ แค่ mark ว่าหลุด (กลับเข้าได้)
+      ROOM._inLobby=false;
+      meRef.child('disconnected').onDisconnect().set(true);
+    } else {
+      // lobby → หลุดลบทิ้งปกติ
+      ROOM._inLobby=true;
+      meRef.onDisconnect().remove();
+    }
+  });
 }
 
 function attachRoomListener(){
@@ -692,6 +815,7 @@ function attachRoomListener(){
         DRAFT._gameId = data.startTime;
         DRAFT._done = false; DRAFT.active = false;
         REVEAL_SHOWN = false;   // เกมใหม่ → โชว์ reveal อีกครั้ง
+        updateDisconnectBehavior();   // เกมเริ่ม → หลุดแล้วเก็บ slot ไว้ (reconnect ได้)
       }
       // ยังไม่เคยเข้า draft ในเกมนี้ → เข้า
       if(!DRAFT._done && !$('scr-draft').classList.contains('active')) enterDraft();
@@ -711,24 +835,25 @@ function attachRoomListener(){
       const inEnd=$('scr-end').classList.contains('active');
       const inReward=$('scr-reward').classList.contains('active');
       const inReveal=$('scr-reveal').classList.contains('active');
+      const inRest=$('scr-rest').classList.contains('active');
       // ครั้งแรกที่เข้า playing → โชว์ reveal "รู้เขารู้เรา" ก่อน (ครั้งเดียวต่อเกม)
-      if(!REVEAL_SHOWN && !inBattle && !inEnd && !inReward){
+      if(!REVEAL_SHOWN && !inBattle && !inEnd && !inReward && !inRest){
         REVEAL_SHOWN=true;
         stopDraftTimer();
         showReveal(players);
         return;
       }
       // draft จบแล้วเมื่อ playing — ออกจากจอ draft ไป race ได้
-      // อย่าลากกลับจอ race ถ้ากำลังสู้/เลือกการ์ด/จบเกม/ดู reveal
-      if(!inBattle && !inEnd && !inReward && !inReveal){
+      // อย่าลากกลับจอ race ถ้ากำลังสู้/เลือกการ์ด/จบเกม/ดู reveal/พักแรม
+      if(!inBattle && !inEnd && !inReward && !inReveal && !inRest){
         if(!$('scr-race').classList.contains('active')){ stopDraftTimer(); enterRace(); }
         renderRace();
-      } else if(!inReveal){
+      } else if(!inReveal && !inRest){
         updateNextFloorUI();
       }
       checkWinConditions(data, players);
     } else {
-      if(!$('scr-battle').classList.contains('active') && !$('scr-reward').classList.contains('active') && !$('scr-draft').classList.contains('active') && !$('scr-reveal').classList.contains('active')) renderRace();
+      if(!$('scr-battle').classList.contains('active') && !$('scr-reward').classList.contains('active') && !$('scr-draft').classList.contains('active') && !$('scr-reveal').classList.contains('active') && !$('scr-rest').classList.contains('active')) renderRace();
     }
     // (host เริ่มเกมด้วยปุ่ม hostStartGame — ไม่ auto แล้ว)
   });
@@ -875,8 +1000,9 @@ function backToLobby(){
   ME.floor=0; ME.hp=100; ME.maxHp=100; ME.ready=false; ME.gold=0;
   MY_LOADOUT={ stats:{atk:0,hp:0,def:0,int:0,spd:0,mana:0}, deck:[] };
   MY_INVENTORY={};
+  REVEAL_SHOWN=false; _feedSeen={};
   stopTurnTimer(); stopVoidStorm();
-  const upd={ status:'lobby', winner:null, reason:null, _ending:null, sabotageQueue:null };
+  const upd={ status:'lobby', winner:null, reason:null, _ending:null, sabotageQueue:null, events:null };
   upd['players/'+ME.id+'/floor']=0;
   upd['players/'+ME.id+'/hp']=100;
   upd['players/'+ME.id+'/maxHp']=100;
@@ -886,6 +1012,7 @@ function backToLobby(){
   upd['players/'+ME.id+'/dead']=null;
   ROOM.ref.update(upd);
   startHeartbeat();
+  updateDisconnectBehavior();   // กลับ lobby → หลุดลบทิ้งปกติ
   showScr('scr-lobby');
 }
 
@@ -982,6 +1109,15 @@ function renderRace(){
   evalVoidStorm(leadFloor);
   updateNextFloorUI();
   updateBagBtn();
+  // spectate mode: ตายแล้วซ่อนปุ่มเล่น โชว์ banner ส่องดู (แต่ยัง emote ได้)
+  const dead=ME.hp<=0;
+  const banner=$('spectate-banner');
+  if(banner) banner.style.display=dead?'block':'none';
+  ['next-floor','btn-fight','btn-darkmarket','btn-bag','btn-deck'].forEach(id=>{
+    const el=$(id); if(!el)return;
+    const wrap=(id==='next-floor')?el.closest('.lbl'):el;
+    if(wrap) wrap.style.display=dead?'none':'';
+  });
 }
 
 /* ========== VOID STORM (BR — เทียบกับคนนำสุด) ========== */
@@ -997,6 +1133,7 @@ function isBehindByStorm(){
   return (leaderFloor()-ME.floor) >= STORM_GAP;
 }
 function evalVoidStorm(){
+  if(ME.hp<=0){ if(_stormActive) stopVoidStorm(); return; }   // ตายแล้วไม่มีพายุ
   const behind=isBehindByStorm();
   if(behind && !_stormActive) startVoidStorm();
   else if(!behind && _stormActive) stopVoidStorm();
@@ -1008,6 +1145,7 @@ function startVoidStorm(){
   if(_stormTimer)clearInterval(_stormTimer);
   _stormTimer=setInterval(()=>{
     if(!_stormActive || ROOM._finished){ stopVoidStorm(); return; }
+    if(ME.hp<=0){ stopVoidStorm(); return; }   // ตายแล้ว ไม่โดนพายุ (ส่องดูได้)
     if(!isBehindByStorm()){ stopVoidStorm(); return; }
     ME.hp=Math.max(0,ME.hp-2);
     pushMyState();
@@ -1291,6 +1429,45 @@ function useSabotage(item){
 
 // อ่าน sabotage ที่มีคนส่งมาหาเรา (เก็บไว้ apply ตอนเข้าชั้นถัดไป)
 let PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false };
+/* ===== Kill Feed / Event Log (ข่าวส่วนรวม) ===== */
+function pushEvent(msg, kind){
+  if(!ROOM.ref) return;
+  ROOM.ref.child('events').push({ msg, kind:kind||'news', at:firebase.database.ServerValue.TIMESTAMP });
+}
+let _feedSeen={};
+let _emoteCooldown=0;
+function sendEmote(emoji){
+  const now=Date.now();
+  if(now<_emoteCooldown){ return; }   // กันสแปม
+  _emoteCooldown=now+1500;
+  pushEvent(`${ME.name}: ${emoji}`, 'emote');
+}
+function listenEvents(){
+  if(!ROOM.ref) return;
+  // เริ่มฟังจากตอนนี้ — ของเก่าก่อนเข้าไม่เด้ง
+  const since=Date.now();
+  ROOM.ref.child('events').limitToLast(12).on('child_added', snap=>{
+    const e=snap.val(); if(!e||!e.msg) return;
+    if(_feedSeen[snap.key]) return;
+    _feedSeen[snap.key]=true;
+    // ของเก่ากว่าตอนเข้าห้อง ไม่เด้ง (แต่ mark ว่าเห็นแล้ว)
+    if(e.at && e.at < since - 2000) return;
+    showFeed(e.msg, e.kind);
+  });
+}
+function showFeed(msg, kind){
+  let box=$('feed-box');
+  if(!box){
+    box=document.createElement('div'); box.id='feed-box'; document.body.appendChild(box);
+  }
+  const t=document.createElement('div');
+  t.className='feed-item'+(kind==='emote'?' emote':''); t.textContent=msg;
+  box.appendChild(t);
+  // เก็บแค่ 4 รายการล่าสุดบนจอ
+  while(box.children.length>4) box.removeChild(box.firstChild);
+  setTimeout(()=>{ t.classList.add('out'); setTimeout(()=>t.remove(),400); }, 4500);
+}
+
 function listenMySabotage(){
   if(!ROOM.ref) return;
   ROOM.ref.child('sabotageQueue/'+ME.id).on('child_added', snap=>{
@@ -1348,10 +1525,13 @@ function updateNextFloorUI(){
   const fl=$('fight-floor'), nfl=$('next-floor');
   if(fl)fl.textContent=nf;
   if(nfl)nfl.textContent=nf;
-  if(nf>21){ $('btn-fight').textContent='🏆 ถึงยอดแล้ว!'; $('btn-fight').disabled=true; }
-  // ร้านค้ามืดซื้อได้ตลอด
+  const dead=ME.hp<=0;
+  if(dead){ $('btn-fight').textContent='💀 ตกหอคอยแล้ว'; $('btn-fight').disabled=true; }
+  else if(nf>21){ $('btn-fight').textContent='🏆 ถึงยอดแล้ว!'; $('btn-fight').disabled=true; }
+  else { $('btn-fight').disabled=false; $('btn-fight').innerHTML='⚔️ เข้าต่อสู้ชั้น <span id="fight-floor">'+nf+'</span>'; }
+  // ร้านค้ามืดซื้อได้ตลอด (ถ้ายังไม่ตาย)
   const dm=$('btn-darkmarket');
-  if(dm){ dm.disabled=false; dm.textContent='🕯️ ร้านค้ามืด (ซื้อของแกล้ง)'; }
+  if(dm){ dm.disabled=dead; dm.textContent='🕯️ ร้านค้ามืด (ซื้อของแกล้ง)'; }
 }
 /* ===== Turn timer (กันโกง: นิ่งไม่กดจบเทิร์น) ===== */
 const TURN_SECONDS=45;
@@ -1378,6 +1558,7 @@ function updateTurnTimerUI(){
 }
 
 function startFight(){
+  if(ME.hp<=0){ toast('💀 คุณตกหอคอยแล้ว เล่นต่อไม่ได้'); return; }
   const nf=ME.floor+1;
   if(nf>21)return;
   const sab=consumePendingSabotage();
@@ -1475,11 +1656,19 @@ function endFight(){
     const gain=base+catchupBonus;
     ME.gold=(ME.gold||0)+gain;
     btLog(`🎉 ชนะ! ขึ้นชั้น ${ME.floor} · +${gain} เครดิต${catchupBonus>0?' (โบนัสไล่ตาม)':''}`);
+    // ข่าวส่วนรวม — เฉพาะหมุดสำคัญ (กัน feed รก)
+    if(ME.floor>21) pushEvent(`🏆 ${ME.name} พิชิตยอดหอคอย!`);
+    else if(ME.floor===11) pushEvent(`🏕️ ${ME.name} ถึงจุดพักแรมชั้น 11`);
+    else if(ME.floor%5===0) pushEvent(`⚔️ ${ME.name} ผ่านชั้น ${ME.floor} แล้ว!`);
   } else {
     btLog('💀 แพ้...');
+    if(ME.hp<=0) pushEvent(`💀 ${ME.name} ตกหอคอยที่ชั้น ${ME.floor+1}!`);
   }
   pushMyState();
-  if(B.won && ME.floor<=21){
+  if(B.won && ME.floor===11){
+    // ชั้น 11 = จุดพักแรม
+    setTimeout(()=>{ CUR_B=null; showRestStop(); }, 900);
+  } else if(B.won && ME.floor<=21){
     // เลือกการ์ดเพิ่ม 1 ใบ (เหมือน SOLO) — แก้ deck น่าเบื่อ
     setTimeout(()=>{ CUR_B=null; showCardReward(); }, 900);
   } else {
@@ -1548,6 +1737,117 @@ function skipRewardCard(){
   renderRace();
 }
 
+/* ===== REST STOP (ชั้น 11) ===== */
+let _restDone=false;
+function showRestStop(){
+  _restDone=false;
+  $('rest-cardpick').style.display='none';
+  $('rest-statpanel').style.display='none';
+  document.querySelectorAll('.rest-opt').forEach(e=>e.style.display='flex');
+  $('rest-skip').style.display='block';
+  showScr('scr-rest');
+}
+function restFinish(){
+  if(_restDone) return;
+  _restDone=true;
+  showScr('scr-race');
+  updateNextFloorUI();
+  renderRace();
+}
+// ---- อัปเกรด / ลบการ์ด: เลือกจากเด็คที่เก็บมา (MY_LOADOUT.deck) ----
+function restShowCardPick(mode){
+  // mode: 'upgrade' | 'remove'
+  document.querySelectorAll('.rest-opt').forEach(e=>e.style.display='none');
+  $('rest-skip').style.display='none';
+  $('rest-cardpick').style.display='block';
+  $('rest-cardpick-label').textContent = mode==='upgrade'?'เลือกการ์ดที่จะอัปเกรด ⬆️':'เลือกการ์ดที่จะลบ 🗑️';
+  // เด็คเต็ม = starter + ที่เก็บมา — แต่แก้ได้เฉพาะการ์ดที่เก็บมา (deck) ไม่ใช่ starter
+  const editable=MY_LOADOUT.deck||[];
+  const box=$('rest-card-list'); box.innerHTML='';
+  if(editable.length===0){
+    box.innerHTML='<div class="dm-msg">ยังไม่มีการ์ดที่เก็บมา (มีแต่ starter — แก้ไม่ได้)</div>';
+    return;
+  }
+  editable.forEach((cid,idx)=>{
+    const card=PVP_CARDS[cid];
+    const ti={attack:'⚔️',defense:'🛡️',magic:'🔥',skill:'✨',curse:'💫'}[card.type]||'';
+    const el=document.createElement('div');
+    el.className='deck-card t-'+card.type;
+    el.innerHTML=`<span class="dc-cost">${card.curse?'✕':card.cost}</span><span class="dc-name">${ti} ${card.name}</span><span class="dc-x"></span><span class="dc-desc">${card.desc}</span>`;
+    el.onclick=()=> mode==='upgrade' ? restUpgradeCard(idx) : restRemoveCard(idx);
+    box.appendChild(el);
+  });
+}
+function restUpgradeCard(idx){
+  const cid=MY_LOADOUT.deck[idx];
+  const up=makeUpgraded(cid);
+  MY_LOADOUT.deck[idx]=up.id;
+  toast(`⬆️ อัปเกรด ${PVP_CARDS[up.id].name}!`);
+  restFinish();
+}
+function restRemoveCard(idx){
+  const cid=MY_LOADOUT.deck[idx];
+  MY_LOADOUT.deck.splice(idx,1);
+  toast(`🗑️ ลบ ${PVP_CARDS[cid].name} แล้ว`);
+  restFinish();
+}
+// สร้างการ์ดอัปเกรด (ลงทะเบียนเข้า PVP_CARDS ถ้ายังไม่มี)
+function makeUpgraded(cid){
+  const base=PVP_CARDS[cid];
+  if(base._upgraded) return base;   // อัปแล้ว อัปซ้ำไม่ได้ (กันลูป)
+  const upId=cid+'★';
+  if(!PVP_CARDS[upId]){
+    const u=Object.assign({}, base);
+    u.id=upId; u.name=base.name+' ★'; u._upgraded=true; u.rarity='rare';
+    if(u.dmg) u.dmg+=3;
+    if(u.block) u.block+=3;
+    if(u.heal) u.heal+=3;
+    if(u.burn) u.burn+=2;
+    if(u.poison) u.poison+=2;
+    if(u.draw) u.draw+=1;
+    u.desc=base.desc+' (★อัปเกรด)';
+    PVP_CARDS[upId]=u;
+  }
+  return PVP_CARDS[upId];
+}
+// ---- รีเซ็ตสเตตัส ----
+let REST_STATS={};
+function restShowStats(){
+  document.querySelectorAll('.rest-opt').forEach(e=>e.style.display='none');
+  $('rest-skip').style.display='none';
+  $('rest-statpanel').style.display='block';
+  REST_STATS={atk:0,hp:0,def:0,int:0,spd:0,mana:0};
+  renderRestStats();
+}
+function restPtsLeft(){ return STAT_POINTS_TOTAL - PVP_STAT_IDS.reduce((s,id)=>s+(REST_STATS[id]||0),0); }
+function renderRestStats(){
+  const box=$('rest-stat-list'); box.innerHTML='';
+  PVP_STAT_IDS.forEach(id=>{
+    const st=PVP_STATS[id]; const val=REST_STATS[id]||0;
+    const row=document.createElement('div'); row.className='stat-row';
+    row.innerHTML=`<div class="stat-info"><div class="stat-name">${st.name}</div><div class="stat-per">${st.per}</div></div>
+      <div class="stat-ctrl"><button class="stat-btn minus" data-id="${id}" data-d="-1">−</button><span class="stat-val">${val}</span><button class="stat-btn plus" data-id="${id}" data-d="1">+</button></div>`;
+    box.appendChild(row);
+  });
+  box.querySelectorAll('.stat-btn').forEach(b=>{ b.onclick=()=>restAdjust(b.dataset.id,parseInt(b.dataset.d)); });
+  $('rest-pts-left').textContent=restPtsLeft();
+}
+function restAdjust(id,d){
+  const st=PVP_STATS[id]; const cur=REST_STATS[id]||0; const next=cur+d;
+  if(next<0||next>st.max) return;
+  if(d>0 && restPtsLeft()<=0) return;
+  REST_STATS[id]=next; renderRestStats();
+}
+function restConfirmStats(){
+  MY_LOADOUT.stats=Object.assign({},REST_STATS);
+  // อัปเดต HP สูงสุดจากแต้มใหม่ (คง % HP ปัจจุบัน)
+  const ratio = ME.maxHp>0 ? ME.hp/ME.maxHp : 1;
+  ME.maxHp=maxHpFromStats(MY_LOADOUT.stats);
+  ME.hp=Math.max(1, Math.round(ME.maxHp*ratio));
+  toast('🔄 รีเซ็ตสเตตัสแล้ว!');
+  restFinish();
+}
+
 function pushMyState(){
   if(!ROOM.ref || ROOM._finished)return;
   ROOM.ref.child('players/'+ME.id).update({
@@ -1570,6 +1870,7 @@ function stopHeartbeat(){ if(_hbTimer){clearInterval(_hbTimer);_hbTimer=null;} }
 /* ========== LEAVE ========== */
 function leaveRoom(){
   if(ROOM.ref){
+    ROOM.ref.child('players/'+ME.id).onDisconnect().cancel();   // ออกเองตั้งใจ ไม่ต้อง keep slot
     ROOM.ref.child('players/'+ME.id).remove();
     // if host and empty, remove room
     ROOM.ref.child('players').get().then(snap=>{
@@ -1578,6 +1879,7 @@ function leaveRoom(){
     }).catch(()=>{});
     ROOM.ref.off('value',_roomListener); _roomListener=null;
   }
+  localStorage.removeItem('ct_pvp_room');   // ออกเอง = ไม่ reconnect
   stopHeartbeat();
   leaveToHome();
 }
@@ -1604,7 +1906,18 @@ $('dm-close').onclick=()=>$('dm-modal').classList.remove('open');
 $('dm-modal').addEventListener('click',e=>{ if(e.target.id==='dm-modal')$('dm-modal').classList.remove('open'); });
 $('btn-bag').onclick=openBag;
 $('btn-deck').onclick=openDeck;
+document.querySelectorAll('.emote-btn').forEach(b=>{
+  b.onclick=()=>sendEmote(b.dataset.e);
+});
 $('reveal-go').onclick=()=>{ enterRace(); renderRace(); };
+// rest stop (ชั้น 11)
+$('rest-upgrade').onclick=()=>restShowCardPick('upgrade');
+$('rest-remove').onclick=()=>restShowCardPick('remove');
+$('rest-reset').onclick=restShowStats;
+$('rest-back').onclick=showRestStop;
+$('rest-back2').onclick=showRestStop;
+$('rest-stat-confirm').onclick=restConfirmStats;
+$('rest-skip').onclick=restFinish;
 $('deck-close').onclick=()=>$('deck-modal').classList.remove('open');
 $('deck-modal').addEventListener('click',e=>{ if(e.target.id==='deck-modal')$('deck-modal').classList.remove('open'); });
 $('bag-close').onclick=()=>$('bag-modal').classList.remove('open');
@@ -1623,10 +1936,39 @@ $('name-create').value=savedName;
 $('name-join').value=savedName;
 $('room-join').addEventListener('input',e=>{ e.target.value=e.target.value.toUpperCase(); });
 
-// clean up on tab close
+// ===== RECONNECT: ตรวจว่าเคยอยู่ห้องที่ยังเล่นอยู่ไหม =====
+function checkReconnect(){
+  const code=localStorage.getItem('ct_pvp_room');
+  if(!code || !rtdb) return;
+  rtdb.ref('rooms/'+code).get().then(snap=>{
+    if(!snap.exists()){ localStorage.removeItem('ct_pvp_room'); return; }
+    const data=snap.val();
+    const me=(data.players||{})[myId()];
+    if(!me){ localStorage.removeItem('ct_pvp_room'); return; }
+    // ยังอยู่ในห้อง — โชว์ปุ่มกลับเข้าเกม
+    const banner=$('reconnect-banner');
+    if(banner){
+      banner.style.display='block';
+      $('reconnect-code').textContent=code;
+      $('btn-reconnect').onclick=()=>{
+        $('name-join').value=me.name||savedName;
+        $('room-join').value=code;
+        joinRoom();
+      };
+      $('btn-reconnect-no').onclick=()=>{
+        localStorage.removeItem('ct_pvp_room');
+        banner.style.display='none';
+      };
+    }
+  }).catch(()=>{});
+}
+setTimeout(checkReconnect, 600);   // รอ Firebase พร้อม
+
+// clean up on tab close — ลบเฉพาะตอนอยู่ lobby (ตอนเล่นใช้ onDisconnect keep slot)
 window.addEventListener('beforeunload',()=>{
-  if(ROOM.ref) ROOM.ref.child('players/'+ME.id).remove();
+  if(ROOM.ref && ROOM._inLobby) ROOM.ref.child('players/'+ME.id).remove();
 });
+
 </script>
 </body>
 </html>
