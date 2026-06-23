@@ -226,6 +226,23 @@ catch(e){ console.warn('Firebase init failed',e); }
   .emote-btn:active{background:rgba(176,96,255,.25);transform:scale(1.2)}
   .spectate-banner{background:linear-gradient(90deg,#3a1020,#2a0a18);border:1px solid #c0392b;border-radius:10px;
     padding:12px;text-align:center;color:#ff9090;font-weight:700;font-size:.9em;margin-bottom:10px;animation:warnblink 2s ease-in-out infinite}
+  /* Ghost panel */
+  .ghost-panel{background:linear-gradient(160deg,#1a1030,#0a0818);border:1px solid #6a3a9a;border-radius:12px;padding:12px;margin-bottom:10px}
+  .ghost-head{font-weight:800;color:#c0a0ff;text-align:center;font-size:.95em;margin-bottom:6px}
+  .ghost-coins{text-align:center;font-size:.85em;color:#ffd060;margin-bottom:8px}
+  .ghost-coins .ghost-tip{font-size:.8em;opacity:.6;color:#a090c0}
+  .ghost-target-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;justify-content:center}
+  .ghost-target-row label{font-size:.82em;color:#c0a0ff}
+  .ghost-target-row select{flex:1;max-width:200px;background:var(--bg2);color:#e0d4ff;border:1px solid var(--line);border-radius:8px;padding:6px}
+  .ghost-actions{display:flex;gap:6px}
+  .ghost-act{flex:1;background:var(--bg2);border:1px solid #6a3a9a;border-radius:10px;padding:8px 4px;color:#e0d4ff;font-size:.78em;font-weight:700;cursor:pointer;line-height:1.3}
+  .ghost-act span{font-size:.78em;font-weight:400;opacity:.7}
+  .ghost-act:active{background:rgba(122,60,240,.3)}
+  .ghost-msg{text-align:center;font-size:.78em;color:#90e0a0;margin-top:8px;min-height:1em}
+  /* spook overlay */
+  .spook-layer{position:fixed;inset:0;z-index:9400;pointer-events:none;overflow:hidden}
+  .spook-ghost{position:absolute;top:100%;opacity:0;animation:spookrise linear forwards}
+  @keyframes spookrise{0%{top:100%;opacity:0}15%{opacity:.9}85%{opacity:.9}100%{top:-15%;opacity:0}}
   .reconnect-banner{background:linear-gradient(90deg,#1a2e1a,#0f240f);border:1px solid #3a9a4a;border-radius:12px;
     padding:14px;margin:0 0 14px;text-align:center;animation:feedin .4s ease}
   .rcb-txt{color:#90e0a0;font-size:.9em;margin-bottom:10px}
@@ -233,6 +250,12 @@ catch(e){ console.warn('Firebase init failed',e); }
   .rcb-btns .btn{flex:1;max-width:160px}
   .bt-timer{font-size:.8em;font-weight:700;color:#90d0ff;background:rgba(46,109,180,.2);border:1px solid #2e6db4;border-radius:12px;padding:3px 10px}
   .bt-timer.urgent{color:#ff8080;background:rgba(192,57,43,.25);border-color:#c0392b;animation:warnblink .6s ease-in-out infinite}
+  .floor-mod-banner{background:linear-gradient(90deg,#2a1a4a,#3a2060);border:1px solid #b060ff;border-radius:10px;
+    padding:10px;margin-bottom:10px;text-align:center;font-size:.82em;color:#e0c0ff;line-height:1.5}
+  .floor-mod-banner b{color:#ffd060}
+  .bt-mod{background:rgba(176,96,255,.15);border:1px solid #8a3ac0;border-radius:8px;padding:5px 10px;
+    margin-bottom:8px;font-size:.72em;color:#e0c0ff;text-align:center}
+  .bt-mod b{color:#ffd060}
   .bt-card.curse{border-color:#aa3366;background:linear-gradient(160deg,#3a1020,#200810)}
   .bt-card.curse .c-cost{background:#aa3366;border-color:#ff88aa}
   .bt-card.r-uncommon{border-color:#4a90d0}
@@ -519,12 +542,24 @@ catch(e){ console.warn('Firebase init failed',e); }
       </div>
     </div>
 
-    <!-- spectate banner (เมื่อตาย) -->
-    <div class="spectate-banner" id="spectate-banner" style="display:none">
-      💀 คุณตกหอคอยแล้ว — กำลังส่องดูผู้รอดชีวิต 👀
+    <!-- ghost panel (เมื่อตาย → เป็นผีป่วนสนาม) -->
+    <div class="ghost-panel" id="spectate-banner" style="display:none">
+      <div class="ghost-head">👻 คุณเป็นวิญญาณป่วนสนาม</div>
+      <div class="ghost-coins">🪙 Soul Coins: <b id="soul-coins">0</b> <span class="ghost-tip">(+5 ทุก 10 วิ)</span></div>
+      <div class="ghost-target-row">
+        <label>เป้า:</label>
+        <select id="ghost-target"></select>
+      </div>
+      <div class="ghost-actions">
+        <button class="ghost-act" id="gh-heal" data-cost="20">💚 ปาฮีล<br><span>+5 HP · 20🪙</span></button>
+        <button class="ghost-act" id="gh-rock" data-cost="15">🪨 ปาหิน<br><span>-2 HP · 15🪙</span></button>
+        <button class="ghost-act" id="gh-spook" data-cost="10">👻 หลอก<br><span>เด้งเต็มจอ · 10🪙</span></button>
+      </div>
+      <div class="ghost-msg" id="ghost-msg"></div>
     </div>
 
     <div class="sim-controls" id="race-controls" style="border-style:solid;border-color:var(--gold)">
+      <div class="floor-mod-banner" id="floor-mod-banner" style="display:none"></div>
       <div class="lbl" style="color:var(--gold)">⚔️ ชั้นถัดไป: <b id="next-floor">1</b> — ศัตรูสุ่มจาก seed เดียวกัน (mirror)</div>
       <div class="sim-row">
         <button class="btn btn-gold" id="btn-fight">⚔️ เข้าต่อสู้ชั้น <span id="fight-floor">1</span></button>
@@ -590,6 +625,7 @@ catch(e){ console.warn('Firebase init failed',e); }
       <span class="bt-timer" id="bt-timer">⏱️ 45วิ</span>
       <span class="seed-tag" id="bt-turn">เทิร์น 1</span>
     </div>
+    <div class="bt-mod" id="bt-mod" style="display:none"></div>
 
     <!-- enemy -->
     <div class="bt-enemy">
@@ -900,6 +936,7 @@ function showEndScreen(winnerId, reason){
   stopHeartbeat();
   stopVoidStorm();
   stopTurnTimer();
+  stopGhostMode();
   const iWon = winnerId===ME.id;
   const winnerName = winnerId===ME.id ? ME.name
     : (RIVALS.find(r=>r.id===winnerId)||{}).name
@@ -1109,7 +1146,7 @@ function renderRace(){
   evalVoidStorm(leadFloor);
   updateNextFloorUI();
   updateBagBtn();
-  // spectate mode: ตายแล้วซ่อนปุ่มเล่น โชว์ banner ส่องดู (แต่ยัง emote ได้)
+  // spectate/ghost mode: ตายแล้วเป็นผี โชว์ ghost panel ซ่อนปุ่มเล่น
   const dead=ME.hp<=0;
   const banner=$('spectate-banner');
   if(banner) banner.style.display=dead?'block':'none';
@@ -1118,6 +1155,52 @@ function renderRace(){
     const wrap=(id==='next-floor')?el.closest('.lbl'):el;
     if(wrap) wrap.style.display=dead?'none':'';
   });
+  if(dead){ startGhostMode(); renderGhostTargets(); }
+}
+
+/* ========== GHOST MODE (ผีป่วนสนาม) ========== */
+let SOUL_COINS=0, _ghostTimer=null, _ghostInit=false;
+function startGhostMode(){
+  if(_ghostInit) return;
+  _ghostInit=true;
+  pushEvent(`👻 ${ME.name} กลายเป็นวิญญาณป่วนสนาม!`);
+  updateSoulUI();
+  // Soul Coins +5 ทุก 10 วิ
+  _ghostTimer=setInterval(()=>{
+    if(ME.hp>0 || ROOM._finished){ stopGhostMode(); return; }
+    SOUL_COINS+=5;
+    updateSoulUI();
+  }, 10000);
+}
+function stopGhostMode(){
+  if(_ghostTimer){ clearInterval(_ghostTimer); _ghostTimer=null; }
+  _ghostInit=false;
+}
+function updateSoulUI(){
+  const el=$('soul-coins'); if(el) el.textContent=SOUL_COINS;
+}
+function renderGhostTargets(){
+  const sel=$('ghost-target'); if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML='';
+  RIVALS.filter(r=>!r.dead).forEach(r=>{
+    const o=document.createElement('option');
+    o.value=r.id; o.textContent=`${r.name} (ชั้น ${r.floor}, ❤${r.hp})`;
+    sel.appendChild(o);
+  });
+  if(cur) sel.value=cur;
+}
+function ghostAction(type, cost){
+  if(SOUL_COINS<cost){ $('ghost-msg').textContent='Soul Coins ไม่พอ'; return; }
+  const targetId=$('ghost-target').value;
+  if(!targetId){ $('ghost-msg').textContent='เลือกเป้าก่อน'; return; }
+  if(!ROOM.ref) return;
+  SOUL_COINS-=cost; updateSoulUI();
+  const tname=(RIVALS.find(r=>r.id===targetId)||{}).name||'เป้า';
+  // ส่งผ่านคิวของเป้า (เครื่องเป้าจัดการเอง)
+  ROOM.ref.child('sabotageQueue/'+targetId).push({ type:'ghost_'+type, from:ME.name, fromId:ME.id, at:firebase.database.ServerValue.TIMESTAMP });
+  const lbl={heal:'💚 ปาฮีล',rock:'🪨 ปาหิน',spook:'👻 หลอก'}[type];
+  $('ghost-msg').textContent=`${lbl} ใส่ ${tname} แล้ว!`;
 }
 
 /* ========== VOID STORM (BR — เทียบกับคนนำสุด) ========== */
@@ -1276,6 +1359,9 @@ function finishDraft(){
   const startDeck=DRAFT.startCard?[DRAFT.startCard]:[];
   MY_LOADOUT={ stats:Object.assign({},DRAFT.stats), deck:startDeck };
   MY_INVENTORY={};   // เริ่มเกม กระเป๋าว่าง
+  AEGIS_FLOORS=0;
+  SOUL_COINS=0; stopGhostMode();   // รีเซ็ตผี
+  PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false, blind:false, cardBurn:false };
   // ตั้งเลือดสูงสุดจากแต้ม HP ครั้งเดียว (กันสะสมทุก battle)
   ME.maxHp=maxHpFromStats(MY_LOADOUT.stats);
   ME.hp=ME.maxHp;
@@ -1308,8 +1394,11 @@ const SABOTAGE_ITEMS=[
   {id:'curse',  ic:'⛓️', name:'โซ่ตรวน',        cost:30,  desc:'เพิ่มการ์ดคำสาป Daze ในเด็คเป้า 1 ใบ'},
   {id:'smoke',  ic:'💨', name:'ระเบิดควัน',      cost:40,  desc:'จอเป้าโดนหมอกบัง 20 วินาที'},
   {id:'noblock',ic:'🔓', name:'ทำลายโล่',        cost:45,  desc:'เป้าใช้การ์ดบล็อกไม่ได้ 1 ศึก'},
+  {id:'blind',  ic:'👁️‍🗨️', name:'หมอกลวงตา',     cost:45,  desc:'เป้ามองไม่เห็นท่าศัตรู (❓) 2 เทิร์นแรก'},
+  {id:'cardburn',ic:'🔥', name:'เผาการ์ด',       cost:50,  desc:'สุ่มเผาการ์ดบนกองจั่วเป้า 1 ใบ ศึกถัดไป'},
   {id:'frenzy', ic:'🧪', name:'น้ำยาคลุ้มคลั่ง', cost:50,  desc:'ศัตรูชั้นหน้าของเป้า HP +20%'},
   {id:'weaken', ic:'💔', name:'คำสาปอ่อนแอ',     cost:60,  desc:'เป้าตีเบาลง -3 และโดนแรงขึ้น 1 ศึก'},
+  {id:'aegis',  ic:'🛡️', name:'โล่สะท้อนคำสาป',  cost:70,  desc:'[ใส่ตัวเอง] สะท้อนของแกล้งกลับไปหาคนส่ง จนจบชั้นถัดไป'},
   {id:'thief',  ic:'🦹', name:'โจรปล้นเสบียง',   cost:75,  desc:'ดูดเครดิต 30 จากเป้ามาให้คุณ'},
 ];
 
@@ -1412,10 +1501,20 @@ function renderBagItems(){
   });
 }
 function useSabotage(item){
-  const targetId=$('bag-target').value;
-  if(!targetId){ $('bag-msg').textContent='เลือกเป้าหมายก่อน'; return; }
   if((MY_INVENTORY[item.id]||0)<=0){ $('bag-msg').textContent='ไม่มีของชิ้นนี้'; return; }
   if(!ROOM.ref) return;
+  // 🛡️ Aegis Ward — ใส่ตัวเอง (ไม่ต้องเลือกเป้า)
+  if(item.id==='aegis'){
+    AEGIS_FLOORS=2;   // คุ้มครองชั้นถัดไป (ชั้นนี้+ชั้นหน้า)
+    MY_INVENTORY[item.id]--;
+    if(MY_INVENTORY[item.id]<=0) delete MY_INVENTORY[item.id];
+    toast('🛡️ โล่สะท้อนคำสาปทำงาน!');
+    $('bag-msg').textContent='🛡️ โล่ติดตัวแล้ว — ของแกล้งจะสะท้อนกลับ';
+    renderBagItems(); updateBagBtn();
+    return;
+  }
+  const targetId=$('bag-target').value;
+  if(!targetId){ $('bag-msg').textContent='เลือกเป้าหมายก่อน'; return; }
   // ส่งผ่านคิวของเป้า (เครื่องเป้าจัดการ effect ตัวเอง — กัน race)
   ROOM.ref.child('sabotageQueue/'+targetId).push({ type:item.id, from:ME.name, fromId:ME.id, at:firebase.database.ServerValue.TIMESTAMP });
   MY_INVENTORY[item.id]--;
@@ -1428,7 +1527,8 @@ function useSabotage(item){
 }
 
 // อ่าน sabotage ที่มีคนส่งมาหาเรา (เก็บไว้ apply ตอนเข้าชั้นถัดไป)
-let PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false };
+let PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false, blind:false, cardBurn:false };
+let AEGIS_FLOORS=0;   // โล่สะท้อน เหลือกี่ชั้น
 /* ===== Kill Feed / Event Log (ข่าวส่วนรวม) ===== */
 function pushEvent(msg, kind){
   if(!ROOM.ref) return;
@@ -1479,10 +1579,20 @@ function listenMySabotage(){
   });
 }
 function applySabotageToPending(type, from, fromId, amount){
+  // loot/reflect/ghost ไม่นับเป็นการแกล้งปกติ (ผ่านได้เสมอ)
+  const isHostile = (type!=='loot' && type!=='reflected' && type.indexOf('ghost_')!==0);
+  // 🛡️ Aegis Ward — สะท้อนของแกล้งกลับไปหาคนส่ง
+  if(isHostile && AEGIS_FLOORS>0 && fromId && fromId!==ME.id){
+    toast(`🛡️ โล่สะท้อน "${sabName(type)}" กลับไปหา ${from}!`);
+    ROOM.ref.child('sabotageQueue/'+fromId).push({ type, from:ME.name, fromId:ME.id, reflected:true, at:firebase.database.ServerValue.TIMESTAMP });
+    return;   // เราไม่โดน
+  }
   if(type==='curse'){ PENDING_SABOTAGE.curseCards++; toast(`⛓️ ${from} ส่งคำสาปมา!`); }
   else if(type==='frenzy'){ PENDING_SABOTAGE.enemyHpBoost=0.20; toast(`🧪 ${from} เสกศัตรูให้แกร่งขึ้น!`); }
   else if(type==='noblock'){ PENDING_SABOTAGE.noBlock=true; toast(`🔓 ${from} ทำลายโล่คุณ!`); }
   else if(type==='weaken'){ PENDING_SABOTAGE.weaken=true; toast(`💔 ${from} สาปให้คุณอ่อนแอ!`); }
+  else if(type==='blind'){ PENDING_SABOTAGE.blind=true; toast(`👁️‍🗨️ ${from} ปล่อยหมอกลวงตา!`); }
+  else if(type==='cardburn'){ PENDING_SABOTAGE.cardBurn=true; toast(`🔥 ${from} จะเผาการ์ดคุณ!`); }
   else if(type==='smoke'){ triggerSmokeScreen(from); }
   else if(type==='thief'){
     // โดนขโมย — เครื่องเราหักเงินตัวเอง (กัน race) แล้วส่งเงินคืนให้โจร
@@ -1494,6 +1604,16 @@ function applySabotageToPending(type, from, fromId, amount){
       ROOM.ref.child('sabotageQueue/'+fromId).push({ type:'loot', from:ME.name, amount:steal, at:firebase.database.ServerValue.TIMESTAMP });
     }
   }
+  else if(type==='ghost_heal'){
+    // ผีปาฮีล +5 HP (ไม่เกิน max) — apply ทันทีถ้ายังเป็น
+    if(ME.hp>0){ ME.hp=Math.min(ME.maxHp, ME.hp+5); pushMyState(); toast(`💚 ${from} (ผี) ปาฮีลให้ +5 HP!`); }
+  }
+  else if(type==='ghost_rock'){
+    if(ME.hp>0){ ME.hp=Math.max(1, ME.hp-2); pushMyState(); toast(`🪨 ${from} (ผี) ปาหินใส่! -2 HP`); }
+  }
+  else if(type==='ghost_spook'){
+    triggerSpook(from);
+  }
   else if(type==='loot'){
     // โจรได้เงินที่ขโมยมา
     ME.gold=(ME.gold||0)+(amount||0);
@@ -1502,19 +1622,44 @@ function applySabotageToPending(type, from, fromId, amount){
     toast(`💰 ขโมยจาก ${from} ได้ ${amount} เครดิต!`);
   }
 }
+function sabName(type){
+  const it=SABOTAGE_ITEMS.find(i=>i.id===type);
+  return it?it.name:type;
+}
 function triggerSmokeScreen(from){
   toast(`💨 ${from} ปล่อยระเบิดควัน!`);
   document.body.classList.add('smoke');
   setTimeout(()=>document.body.classList.remove('smoke'), 20000);
+}
+// 👻 ผีหลอก — อีโมจิผีลอยเต็มจอ
+function triggerSpook(from){
+  toast(`👻 ${from} (ผี) มาหลอก!`);
+  const layer=document.createElement('div');
+  layer.className='spook-layer';
+  for(let i=0;i<14;i++){
+    const g=document.createElement('div');
+    g.className='spook-ghost'; g.textContent='👻';
+    g.style.left=(Math.random()*90)+'%';
+    g.style.fontSize=(1.5+Math.random()*2.5)+'em';
+    g.style.animationDelay=(Math.random()*0.8)+'s';
+    g.style.animationDuration=(1.8+Math.random()*1.5)+'s';
+    layer.appendChild(g);
+  }
+  document.body.appendChild(layer);
+  setTimeout(()=>layer.remove(), 3500);
 }
 function consumePendingSabotage(){
   const s={
     curseCards:PENDING_SABOTAGE.curseCards,
     enemyHpBoost:PENDING_SABOTAGE.enemyHpBoost,
     noBlock:PENDING_SABOTAGE.noBlock,
-    weaken:PENDING_SABOTAGE.weaken
+    weaken:PENDING_SABOTAGE.weaken,
+    blind:PENDING_SABOTAGE.blind,
+    cardBurn:PENDING_SABOTAGE.cardBurn
   };
-  PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false };
+  PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false, blind:false, cardBurn:false };
+  // โล่ Aegis ลดลง 1 ชั้นต่อการเข้าต่อสู้
+  if(AEGIS_FLOORS>0) AEGIS_FLOORS--;
   return s;
 }
 
@@ -1532,6 +1677,15 @@ function updateNextFloorUI(){
   // ร้านค้ามืดซื้อได้ตลอด (ถ้ายังไม่ตาย)
   const dm=$('btn-darkmarket');
   if(dm){ dm.disabled=dead; dm.textContent='🕯️ ร้านค้ามืด (ซื้อของแกล้ง)'; }
+  // 🎲 กฎพิเศษประจำชั้นถัดไป
+  const mod=floorModifier(nf);
+  const mb=$('floor-mod-banner');
+  if(mb){
+    if(mod && !dead && nf<=21){
+      mb.style.display='block';
+      mb.innerHTML=`<b>${mod.ic} ชั้น ${nf}: ${mod.name}</b><br><span>${mod.desc}</span>`;
+    } else mb.style.display='none';
+  }
 }
 /* ===== Turn timer (กันโกง: นิ่งไม่กดจบเทิร์น) ===== */
 const TURN_SECONDS=45;
@@ -1577,14 +1731,26 @@ function renderBattleUI(){
   const B=CUR_B; if(!B)return;
   $('bt-floor').textContent=B.floor;
   $('bt-turn').textContent='เทิร์น '+B.turn;
+  // floor modifier tag
+  const mod=floorModifier(B.floor);
+  const mt=$('bt-mod');
+  if(mt){
+    if(mod){ mt.style.display='block'; mt.innerHTML=`${mod.ic} <b>${mod.name}</b> — ${mod.desc}`; }
+    else mt.style.display='none';
+  }
   // enemy
   $('bt-spr').textContent=B.enemy.spr;
   $('bt-ename').textContent=B.enemy.name;
   const ehpPct=Math.max(0,(B.enemy.hp/B.enemy.maxHp)*100);
   $('bt-ehp-fill').style.width=ehpPct+'%';
   $('bt-ehp-txt').textContent=`${B.enemy.hp}/${B.enemy.maxHp}`;
-  const intent=B_enemyIntent(B);
-  $('bt-intent').textContent=`${intent.icon} ${intent.txt}`;
+  // 👁️‍🗨️ หมอกลวงตา — ซ่อนท่าศัตรู 2 เทิร์นแรก
+  if(B._blind && B.turn<=2){
+    $('bt-intent').textContent='❓ ไม่ทราบการกระทำ';
+  } else {
+    const intent=B_enemyIntent(B);
+    $('bt-intent').textContent=`${intent.icon} ${intent.txt}`;
+  }
   let est=[];
   if(B.enemy.block>0)est.push(`🛡️${B.enemy.block}`);
   if(B.enemy.burn>0)est.push(`🔥${B.enemy.burn}`);
@@ -1886,6 +2052,7 @@ function leaveRoom(){
 function leaveToHome(){
   stopVoidStorm();
   stopTurnTimer();
+  stopGhostMode(); SOUL_COINS=0;
   ROOM={ code:null, ref:null, seed:null, isHost:false };
   RIVALS=[]; ALL_PLAYERS={};
   ME.floor=0; ME.hp=100; ME.ready=false;
@@ -1909,6 +2076,9 @@ $('btn-deck').onclick=openDeck;
 document.querySelectorAll('.emote-btn').forEach(b=>{
   b.onclick=()=>sendEmote(b.dataset.e);
 });
+$('gh-heal').onclick=()=>ghostAction('heal',20);
+$('gh-rock').onclick=()=>ghostAction('rock',15);
+$('gh-spook').onclick=()=>ghostAction('spook',10);
 $('reveal-go').onclick=()=>{ enterRace(); renderRace(); };
 // rest stop (ชั้น 11)
 $('rest-upgrade').onclick=()=>restShowCardPick('upgrade');
