@@ -114,14 +114,7 @@ catch(e){ console.warn('Firebase init failed',e); }
   .emote-tray button{background:none;border:none;font-size:1.6em;cursor:pointer;transition:transform .1s}
   .emote-tray button:active{transform:scale(1.3)}
 
-  /* (Styles from Battle, Draft, Sabotage same as before) */
-  .bt-pstats, .bt-enemy, .bt-hand, .sim-controls, .stat-list, .draft-grid { /* Simplified for brevity, standard layouts */ }
-  .bt-card{width:74px;height:104px;border-radius:10px;border:2px solid var(--line);background:linear-gradient(160deg,#241a4a,#160e30);display:flex;flex-direction:column;align-items:center;padding:6px 4px;cursor:pointer;position:relative}
-  .bt-card .c-cost{position:absolute;top:-6px;left:-6px;width:22px;height:22px;border-radius:50%;background:#3a6acc;border:2px solid #bfe0ff;color:#fff;font-size:.72em;font-weight:800;display:flex;align-items:center;justify-content:center}
-  /* (Skipped repeating full battle css to save space, but keeping essential structures) */
-</style>
-<!-- Paste original CSS for Battle/Draft/Sabotage here exactly as it was -->
-<style>
+  /* ===== Battle, Draft, etc. ===== */
   .draft-head{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
   .draft-title{font-size:1.2em;font-weight:800;color:var(--gold)}
   .draft-timer{font-size:1.4em;font-weight:800;color:#fff;background:#3a0a2a;border:2px solid var(--rival);border-radius:10px;min-width:54px;text-align:center;padding:3px 0}
@@ -163,10 +156,8 @@ catch(e){ console.warn('Firebase init failed',e); }
 </head>
 <body>
 <div class="wrap">
-  <!-- NEW: Event Log (Kill Feed) -->
   <div id="kill-feed-container"></div>
 
-  <!-- ===== SCREEN: HOME ===== -->
   <div class="scr active" id="scr-home">
     <div class="logo">
       <div class="t">⚔️ ศึกร่างเงา ⚔️</div>
@@ -190,7 +181,6 @@ catch(e){ console.warn('Firebase init failed',e); }
     <div class="err" id="home-err"></div>
   </div>
 
-  <!-- ===== SCREEN: LOBBY ===== -->
   <div class="scr" id="scr-lobby">
     <div class="topbar">
       <button class="back-link" id="btn-leave-lobby">← ออก</button>
@@ -205,7 +195,6 @@ catch(e){ console.warn('Firebase init failed',e); }
     <button class="btn btn-gold" id="btn-start-game" style="display:none" disabled>เริ่มเกม</button>
   </div>
 
-  <!-- ===== SCREEN: DRAFT ===== -->
   <div class="scr" id="scr-draft">
     <div class="draft-head">
       <div class="draft-title">⚒️ สร้างนักรบ</div>
@@ -223,14 +212,12 @@ catch(e){ console.warn('Firebase init failed',e); }
     <div class="hint" id="draft-wait" style="display:none; color:var(--ok)">✅ รอผู้เล่นอื่น...</div>
   </div>
 
-  <!-- NEW: SCREEN REVEAL (โชว์ข้อมูลคู่แข่งก่อนสู้) -->
   <div class="scr" id="scr-reveal">
     <div class="rev-title">👁️ รู้เขารู้เรา</div>
     <div class="hint">เตรียมตัว... การต่อสู้กำลังจะเริ่ม!</div>
     <div class="rev-grid" id="reveal-grid"></div>
   </div>
 
-  <!-- ===== SCREEN: RACE ===== -->
   <div class="scr" id="scr-race">
     <div class="storm-warn" id="storm-warn">⚠️ หมอกมรณะกำลังกลืนกิน! รีบตามไป! <span class="storm-drain">-2 HP / 5 วิ</span></div>
     <div class="topbar">
@@ -252,7 +239,6 @@ catch(e){ console.warn('Firebase init failed',e); }
     </div>
   </div>
 
-  <!-- ===== SCREEN: BATTLE ===== -->
   <div class="scr" id="scr-battle">
     <div class="topbar">
       <span class="rc">⚔️ ชั้น <b id="bt-floor">1</b></span>
@@ -275,7 +261,6 @@ catch(e){ console.warn('Firebase init failed',e); }
     <button class="btn btn-purple" id="bt-endturn">จบเทิร์น ⏭️</button>
   </div>
 
-  <!-- ===== SCREEN: REWARD ===== -->
   <div class="scr" id="scr-reward">
     <div class="draft-head"><div class="draft-title">🎁 ผ่านชั้น <span id="reward-floor">1</span>!</div></div>
     <div class="draft-step">เลือกการ์ด 1 ใบเข้าเด็ค</div>
@@ -283,7 +268,6 @@ catch(e){ console.warn('Firebase init failed',e); }
     <button class="btn btn-dim" id="reward-skip" style="margin-top:14px">ข้าม (ไม่เอาการ์ด)</button>
   </div>
 
-  <!-- ===== SCREEN: END ===== -->
   <div class="scr" id="scr-end">
     <div class="end-wrap">
       <div class="end-result" id="end-result">—</div>
@@ -293,7 +277,6 @@ catch(e){ console.warn('Firebase init failed',e); }
     </div>
   </div>
 
-  <!-- NEW: Emote UI -->
   <div id="emote-container"></div>
   <button class="emote-btn" id="btn-toggle-emote">💬</button>
   <div class="emote-tray" id="emote-tray">
@@ -305,13 +288,20 @@ catch(e){ console.warn('Firebase init failed',e); }
     <button onclick="sendEmote('🏳️')">🏳️</button>
   </div>
 
-  <!-- Modals for Shop (Skipped full html here, keeping core logic) -->
   <div class="dm-overlay" id="dm-modal"><div class="dm-box"><div class="dm-title">🕯️ ร้านค้ามืด</div><div class="dm-credit">💳 <b id="dm-credit">0</b></div><div class="dm-items" id="dm-items"></div><div style="text-align:center;font-size:.8em;color:var(--ok);margin:10px 0" id="dm-msg"></div><button class="btn btn-dim" id="dm-close">ปิด</button></div></div>
   <div class="dm-overlay" id="bag-modal"><div class="dm-box"><div class="dm-title">🎒 กระเป๋าของแกล้ง</div><div style="margin-bottom:12px"><select id="bag-target" style="width:100%;padding:8px;background:var(--panel);color:#fff;border-radius:8px"></select></div><div class="dm-items" id="bag-items"></div><div style="text-align:center;font-size:.8em;color:var(--ok);margin:10px 0" id="bag-msg"></div><button class="btn btn-dim" id="bag-close">ปิด</button></div></div>
 
 </div>
 
 <script>
+/* ========== Constants & Configs ========== */
+const REWARD_POOLS={
+  attack:  ['jab','flurry','bash','vampire','allin','reckless','heavy'],
+  magic:   ['poisondart','ignite','drain','fireball'],
+  defense: ['thorns','bulwark','ironwall','guard'],
+};
+function pickFromPool(pool, rng){ return pool[Math.floor(rng()*pool.length)]; }
+
 /* ========== STATE ========== */
 const MAX_FLOOR=20;
 const MAX_PLAYERS=8;
@@ -342,7 +332,7 @@ function myId(){
   return id;
 }
 
-/* NEW: Global Kill Feed & Event Log */
+/* Global Kill Feed & Event Log */
 function sendGlobalEvent(msg) {
   if(!ROOM.ref) return;
   ROOM.ref.child('events').push({ msg, at: firebase.database.ServerValue.TIMESTAMP });
@@ -351,7 +341,7 @@ function listenGlobalEvents() {
   if(!ROOM.ref) return;
   ROOM.ref.child('events').limitToLast(1).on('child_added', snap => {
     const data = snap.val();
-    if(Date.now() - (data.at||0) < 10000) { // Only show recent events
+    if(Date.now() - (data.at||0) < 10000) { 
       const box = $('kill-feed-container');
       const item = document.createElement('div');
       item.className = 'kill-feed-item';
@@ -363,7 +353,7 @@ function listenGlobalEvents() {
   });
 }
 
-/* NEW: Emote System */
+/* Emote System */
 $('btn-toggle-emote').onclick = () => $('emote-tray').classList.toggle('open');
 function sendEmote(emoji) {
   if(!ROOM.ref) return;
@@ -379,7 +369,6 @@ function listenEmotes() {
       const el = document.createElement('div');
       el.className = 'emote-float';
       el.textContent = `${data.name}: ${data.emoji}`;
-      // Randomize position slightly
       el.style.right = (10 + Math.random()*20) + '%';
       container.appendChild(el);
       setTimeout(() => el.remove(), 2500);
@@ -387,7 +376,6 @@ function listenEmotes() {
     snap.ref.remove();
   });
 }
-
 
 /* ========== CREATE / JOIN ========== */
 function createRoom(){
@@ -420,7 +408,7 @@ function joinRoom(){
     const players=data.players||{};
     const count=Object.keys(players).length;
     
-    // NEW: Reconnect Logic - If already in room, allow bypass
+    // Reconnect Logic
     if(count>=MAX_PLAYERS && !players[myId()]){ $('home-err').textContent='ห้องเต็มแล้ว'; return; }
     
     ME={ id:myId(), name, floor:players[myId()]?.floor||0, hp:players[myId()]?.hp||100, maxHp:players[myId()]?.maxHp||100, ready:false, gold:players[myId()]?.gold||0, connected:true };
@@ -441,8 +429,6 @@ function enterLobby(){
   listenMySabotage();
   listenGlobalEvents();
   listenEmotes();
-  
-  // NEW: Change from remove() to setting connected: false
   ROOM.ref.child('players/'+ME.id).onDisconnect().update({ connected: false });
 }
 
@@ -472,7 +458,6 @@ function attachRoomListener(){
       
       const ids=Object.keys(players);
       const allDone = ids.length>=2 && ids.every(id=>players[id].draftDone===true);
-      // NEW: When all done, go to Reveal instead of playing directly
       if(allDone && ROOM.isHost){
         ROOM.ref.child('status').get().then(s=>{
           if(s.val()==='drafting') ROOM.ref.update({ status:'reveal' });
@@ -481,7 +466,6 @@ function attachRoomListener(){
       return;
     }
     
-    // NEW: Reveal Status
     if(data.status==='reveal'){
       showRevealScreen(players);
       return;
@@ -545,7 +529,6 @@ function renderLobby(players){
   ids.forEach(pid=>{
     const p=players[pid]; const isMe=pid===ME.id;
     const div=document.createElement('div');
-    // NEW: Update dot color if offline
     div.className='pslot'+(p.ready?' ready':'')+(isMe?' me':'')+(p.connected===false?' offline':'');
     div.innerHTML=`<span class="dot"></span><span class="nm">${(p.name||'?').replace(/[<>&]/g,'')}${isMe?' (คุณ)':''}${p.host?' 👑':''}</span><span class="st">${p.connected===false?'เน็ตหลุด':(p.ready?'พร้อม':'รอ...')}</span>`;
     box.appendChild(div);
@@ -576,7 +559,6 @@ function hostStartGame(){
   });
 }
 
-/* NEW: REVEAL SCREEN */
 function showRevealScreen(players) {
   showScr('scr-reveal');
   const grid = $('reveal-grid');
@@ -584,10 +566,9 @@ function showRevealScreen(players) {
   Object.keys(players).forEach(pid => {
     const p = players[pid];
     const s = p.stats || {};
-    // Find top 2 stats
     const stArr = Object.keys(s).map(k=>({k, v:s[k]})).sort((a,b)=>b.v-a.v).filter(x=>x.v>0).slice(0,2);
     const stStr = stArr.length > 0 ? stArr.map(x=> `${PVP_STATS[x.k].name} Lv.${x.v}`).join(' | ') : 'สมดุล';
-    const cName = p.startCard ? PVP_CARDS[p.startCard].name : 'ไม่มี';
+    const cName = p.startCard ? PVP_CARDS[p.startCard]?.name || 'ไม่มี' : 'ไม่มี';
     
     const div = document.createElement('div');
     div.className = 'rev-card';
@@ -599,12 +580,9 @@ function showRevealScreen(players) {
     grid.appendChild(div);
   });
 
-  // Host automatically transitions to playing after 5 seconds
   if(ROOM.isHost && !ROOM._revealTimeoutSet) {
     ROOM._revealTimeoutSet = true;
-    setTimeout(() => {
-      ROOM.ref.update({ status:'playing' });
-    }, 5000);
+    setTimeout(() => { ROOM.ref.update({ status:'playing' }); }, 5000);
   }
 }
 
@@ -697,8 +675,7 @@ function finishDraft(){
   MY_LOADOUT={ stats:Object.assign({},DRAFT.stats), deck:DRAFT.startCard?[DRAFT.startCard]:[] }; MY_INVENTORY={};
   ME.maxHp=maxHpFromStats(MY_LOADOUT.stats); ME.hp=ME.maxHp;
   $('draft-next').style.display='none'; $('draft-wait').style.display='block';
-  // NEW: Save loadout stats to DB so others can see in Reveal Phase
-  if(ROOM.ref){ ROOM.ref.child('players/'+ME.id).update({ hp:ME.hp, maxHp:ME.maxHp, draftDone:true, stats: MY_LOADOUT.stats, startCard: DRAFT.startCard, lastHeartbeat:firebase.database.ServerValue.TIMESTAMP }); }
+  if(ROOM.ref){ ROOM.ref.child('players/'+ME.id).update({ hp:ME.hp, maxHp:ME.maxHp, draftDone:true, stats: MY_LOADOUT.stats, startCard: DRAFT.startCard || '', lastHeartbeat:firebase.database.ServerValue.TIMESTAMP }); }
 }
 
 /* ===== SABOTAGE ===== */
