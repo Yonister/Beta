@@ -175,6 +175,33 @@ catch(e){ console.warn('Firebase init failed',e); }
   .bt-card.t-defense{border-left-color:#2e6db4}  /* ฟ้า บล็อก */
   .bt-card.t-skill{border-left-color:#3a9a4a}    /* เขียว ยูทิลิตี้ */
   .bt-card.t-curse{border-left-color:#7a3ac0}
+  /* ดูสำรับ */
+  .deck-grid{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto;margin:6px 0}
+  .deck-card{display:grid;grid-template-columns:auto 1fr auto;gap:6px 8px;align-items:center;
+    background:var(--bg2);border:1px solid var(--line);border-left-width:5px;border-radius:8px;padding:7px 10px}
+  .deck-card.t-attack{border-left-color:#c0392b}
+  .deck-card.t-magic{border-left-color:#8a3ac0}
+  .deck-card.t-defense{border-left-color:#2e6db4}
+  .deck-card.t-skill{border-left-color:#3a9a4a}
+  .deck-card.t-curse{border-left-color:#7a3ac0}
+  .deck-card.r-rare{box-shadow:0 0 6px rgba(208,160,32,.3)}
+  .dc-cost{width:22px;height:22px;border-radius:50%;background:#2a6ad0;color:#fff;font-weight:800;font-size:.7em;display:flex;align-items:center;justify-content:center}
+  .dc-name{font-size:.84em;font-weight:600;color:#e0d4ff}
+  .dc-x{font-size:.8em;font-weight:800;color:var(--gold)}
+  .dc-desc{grid-column:2/4;font-size:.66em;color:var(--purple);line-height:1.3}
+  /* Reveal รู้เขารู้เรา */
+  .reveal-list{display:flex;flex-direction:column;gap:8px;margin:10px 0;max-height:54vh;overflow-y:auto}
+  .reveal-row{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .reveal-row.me{border-color:var(--gold);box-shadow:0 0 8px rgba(208,160,32,.25)}
+  .rv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .rv-name{font-weight:700;font-size:.92em;color:#e0d4ff}
+  .rv-build{font-size:.74em;color:var(--gold);font-weight:600}
+  .rv-stats{display:flex;flex-direction:column;gap:3px}
+  .rv-stat{display:flex;align-items:center;gap:6px}
+  .rv-ic{font-size:.72em;width:18px;text-align:center}
+  .rv-bar{flex:1;height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden}
+  .rv-fill{height:100%;border-radius:4px;transition:width .4s}
+  .rv-v{font-size:.7em;font-weight:700;color:#c0b0e0;width:18px;text-align:right}
   .bt-timer{font-size:.8em;font-weight:700;color:#90d0ff;background:rgba(46,109,180,.2);border:1px solid #2e6db4;border-radius:12px;padding:3px 10px}
   .bt-timer.urgent{color:#ff8080;background:rgba(192,57,43,.25);border-color:#c0392b;animation:warnblink .6s ease-in-out infinite}
   .bt-card.curse{border-color:#aa3366;background:linear-gradient(160deg,#3a1020,#200810)}
@@ -384,6 +411,17 @@ catch(e){ console.warn('Firebase init failed',e); }
     <button class="btn btn-dim" id="reward-skip" style="margin-top:14px">ข้าม (ไม่เอาการ์ด)</button>
   </div>
 
+  <!-- ===== SCREEN: REVEAL (รู้เขารู้เรา) ===== -->
+  <div class="scr" id="scr-reveal">
+    <div class="draft-head">
+      <div class="draft-title">👁️ รู้เขารู้เรา</div>
+    </div>
+    <div class="draft-step">build ของผู้เล่นทุกคน</div>
+    <div class="draft-hint">ดูว่าใครเทแต้มสายไหน แล้ววางแผนรับมือ</div>
+    <div class="reveal-list" id="reveal-list"></div>
+    <button class="btn btn-gold" id="reveal-go" style="margin-top:14px">⚔️ เริ่มไต่หอคอย!</button>
+  </div>
+
   <!-- ===== SCREEN: RACE ===== -->
   <div class="scr" id="scr-race">
     <div class="storm-warn" id="storm-warn">⚠️ หมอกมรณะกำลังกลืนกิน! รีบตามไป! <span class="storm-drain">-2 HP / 5 วิ</span></div>
@@ -414,6 +452,7 @@ catch(e){ console.warn('Firebase init failed',e); }
       </div>
       <button class="btn btn-dim" id="btn-darkmarket" style="margin-top:8px">🕯️ ร้านค้ามืด (ซื้อของแกล้ง)</button>
       <button class="btn btn-dim" id="btn-bag" style="margin-top:8px">🎒 กระเป๋า (ใช้ของแกล้ง) <span id="bag-count"></span></button>
+      <button class="btn btn-dim" id="btn-deck" style="margin-top:8px">🃏 ดูสำรับการ์ด</button>
     </div>
 
     <div class="status-line" id="race-status"><span class="conn" id="race-conn"></span><span id="race-conn-txt">sync ทำงาน</span></div>
@@ -442,6 +481,15 @@ catch(e){ console.warn('Firebase init failed',e); }
       <div class="dm-items" id="bag-items"></div>
       <div class="dm-msg" id="bag-msg"></div>
       <button class="btn btn-dim" id="bag-close">ปิด</button>
+    </div>
+  </div>
+
+  <!-- ===== Deck view modal ===== -->
+  <div class="dm-overlay" id="deck-modal">
+    <div class="dm-box">
+      <div class="dm-title">🃏 สำรับการ์ดของคุณ <span id="deck-total" style="font-size:.7em;opacity:.7"></span></div>
+      <div class="deck-grid" id="deck-list"></div>
+      <button class="btn btn-dim" id="deck-close">ปิด</button>
     </div>
   </div>
 
@@ -483,7 +531,8 @@ catch(e){ console.warn('Firebase init failed',e); }
       <div class="end-result" id="end-result">—</div>
       <div class="end-sub" id="end-sub"></div>
       <div class="end-detail" id="end-detail"></div>
-      <button class="btn btn-gold" id="btn-rematch">🔁 กลับหน้าหลัก</button>
+      <button class="btn btn-gold" id="btn-rematch">🔁 กลับ Lobby (เล่นอีกรอบ)</button>
+      <button class="btn btn-dim" id="btn-leave-end" style="margin-top:8px">ออกจากห้อง</button>
     </div>
   </div>
 
@@ -621,12 +670,28 @@ function attachRoomListener(){
     }
 
     renderLobby(players);
+    // ===== Back to LOBBY (rematch) =====
+    if(data.status==='lobby'){
+      // กลับมา lobby หลังจบเกม → รีเซ็ตสถานะรอบเก่า
+      if(ROOM._finished || $('scr-end').classList.contains('active') ||
+         $('scr-race').classList.contains('active') || $('scr-battle').classList.contains('active')){
+        ROOM._finished=false;
+        DRAFT._done=false; DRAFT.active=false; DRAFT._gameId=null;
+        ME.floor=0; ME.hp=100; ME.maxHp=100;
+        MY_LOADOUT={ stats:{atk:0,hp:0,def:0,int:0,spd:0,mana:0}, deck:[] };
+        MY_INVENTORY={};
+        stopTurnTimer(); stopVoidStorm();
+        if(!$('scr-lobby').classList.contains('active')) showScr('scr-lobby');
+      }
+      return;
+    }
     // ===== DRAFT phase =====
     if(data.status==='drafting'){
       // ตรวจ "เกมใหม่" จาก startTime — ถ้าเปลี่ยน = เกมรอบใหม่ → รีเซ็ต draft เก่า
       if(data.startTime && DRAFT._gameId !== data.startTime){
         DRAFT._gameId = data.startTime;
         DRAFT._done = false; DRAFT.active = false;
+        REVEAL_SHOWN = false;   // เกมใหม่ → โชว์ reveal อีกครั้ง
       }
       // ยังไม่เคยเข้า draft ในเกมนี้ → เข้า
       if(!DRAFT._done && !$('scr-draft').classList.contains('active')) enterDraft();
@@ -645,17 +710,25 @@ function attachRoomListener(){
       const inBattle=$('scr-battle').classList.contains('active');
       const inEnd=$('scr-end').classList.contains('active');
       const inReward=$('scr-reward').classList.contains('active');
+      const inReveal=$('scr-reveal').classList.contains('active');
+      // ครั้งแรกที่เข้า playing → โชว์ reveal "รู้เขารู้เรา" ก่อน (ครั้งเดียวต่อเกม)
+      if(!REVEAL_SHOWN && !inBattle && !inEnd && !inReward){
+        REVEAL_SHOWN=true;
+        stopDraftTimer();
+        showReveal(players);
+        return;
+      }
       // draft จบแล้วเมื่อ playing — ออกจากจอ draft ไป race ได้
-      // อย่าลากกลับจอ race ถ้ากำลังสู้/เลือกการ์ด/จบเกม
-      if(!inBattle && !inEnd && !inReward){
+      // อย่าลากกลับจอ race ถ้ากำลังสู้/เลือกการ์ด/จบเกม/ดู reveal
+      if(!inBattle && !inEnd && !inReward && !inReveal){
         if(!$('scr-race').classList.contains('active')){ stopDraftTimer(); enterRace(); }
         renderRace();
-      } else {
+      } else if(!inReveal){
         updateNextFloorUI();
       }
       checkWinConditions(data, players);
     } else {
-      if(!$('scr-battle').classList.contains('active') && !$('scr-reward').classList.contains('active') && !$('scr-draft').classList.contains('active')) renderRace();
+      if(!$('scr-battle').classList.contains('active') && !$('scr-reward').classList.contains('active') && !$('scr-draft').classList.contains('active') && !$('scr-reveal').classList.contains('active')) renderRace();
     }
     // (host เริ่มเกมด้วยปุ่ม hostStartGame — ไม่ auto แล้ว)
   });
@@ -792,6 +865,70 @@ function hostStartGame(){
       ROOM.ref.update(updates);
     }
   });
+}
+
+// กลับ lobby หลังจบเกม (เล่นอีกรอบในห้องเดิม)
+function backToLobby(){
+  if(!ROOM.ref) { leaveRoom(); return; }
+  ROOM._finished=false;
+  DRAFT._done=false; DRAFT.active=false; DRAFT._gameId=null;
+  ME.floor=0; ME.hp=100; ME.maxHp=100; ME.ready=false; ME.gold=0;
+  MY_LOADOUT={ stats:{atk:0,hp:0,def:0,int:0,spd:0,mana:0}, deck:[] };
+  MY_INVENTORY={};
+  stopTurnTimer(); stopVoidStorm();
+  const upd={ status:'lobby', winner:null, reason:null, _ending:null, sabotageQueue:null };
+  upd['players/'+ME.id+'/floor']=0;
+  upd['players/'+ME.id+'/hp']=100;
+  upd['players/'+ME.id+'/maxHp']=100;
+  upd['players/'+ME.id+'/gold']=0;
+  upd['players/'+ME.id+'/ready']=false;
+  upd['players/'+ME.id+'/draftDone']=false;
+  upd['players/'+ME.id+'/dead']=null;
+  ROOM.ref.update(upd);
+  startHeartbeat();
+  showScr('scr-lobby');
+}
+
+/* ========== REVEAL (รู้เขารู้เรา) ========== */
+let REVEAL_SHOWN=false;
+const STAT_META={
+  atk:{ic:'⚔️',name:'ATK',color:'#c0392b'},
+  hp:{ic:'❤️',name:'HP',color:'#e0556a'},
+  def:{ic:'🛡️',name:'DEF',color:'#2e6db4'},
+  int:{ic:'🔮',name:'INT',color:'#8a3ac0'},
+  spd:{ic:'💨',name:'SPD',color:'#3a9a4a'},
+  mana:{ic:'💎',name:'MANA',color:'#2a6ad0'},
+};
+function buildLabel(stats){
+  // หาสายเด่น (แต้มสูงสุด)
+  if(!stats) return 'ไม่ทราบ build';
+  let top=null,topv=-1;
+  Object.keys(STAT_META).forEach(k=>{ if((stats[k]||0)>topv){topv=stats[k]||0;top=k;} });
+  if(topv<=0) return 'กระจายแต้ม';
+  const m=STAT_META[top];
+  return `สาย ${m.ic}${m.name}`;
+}
+function showReveal(players){
+  const box=$('reveal-list'); box.innerHTML='';
+  const ids=Object.keys(players);
+  ids.forEach(id=>{
+    const p=players[id];
+    const isMe=id===ME.id;
+    const stats=p.stats||{};
+    const row=document.createElement('div');
+    row.className='reveal-row'+(isMe?' me':'');
+    // bar แต่ละ stat
+    let bars='';
+    Object.keys(STAT_META).forEach(k=>{
+      const v=stats[k]||0;
+      const m=STAT_META[k];
+      const pct=Math.min(100,v*10);
+      bars+=`<div class="rv-stat"><span class="rv-ic">${m.ic}</span><div class="rv-bar"><div class="rv-fill" style="width:${pct}%;background:${m.color}"></div></div><span class="rv-v">${v}</span></div>`;
+    });
+    row.innerHTML=`<div class="rv-head"><span class="rv-name">${isMe?'⭐ ':''}${p.name||'?'}</span><span class="rv-build">${buildLabel(stats)}</span></div><div class="rv-stats">${bars}</div>`;
+    box.appendChild(row);
+  });
+  showScr('scr-reveal');
 }
 
 /* ========== RACE (Battle Royale) ========== */
@@ -1006,10 +1143,11 @@ function finishDraft(){
   ME.hp=ME.maxHp;
   $('draft-next').style.display='none';
   $('draft-wait').style.display='block';
-  // เขียน state + draftDone ในครั้งเดียว (ไม่เรียก renderRace ระหว่างอยู่จอ draft)
+  // เขียน state + draftDone + stats (สำหรับ reveal รู้เขารู้เรา) ในครั้งเดียว
   if(ROOM.ref){
     ROOM.ref.child('players/'+ME.id).update({
       hp:ME.hp, maxHp:ME.maxHp, draftDone:true,
+      stats:MY_LOADOUT.stats,
       lastHeartbeat:firebase.database.ServerValue.TIMESTAMP
     });
   }
@@ -1029,12 +1167,12 @@ function showStatInfo(){
 
 /* ===== SABOTAGE / Dark Market (Stage 4) ===== */
 const SABOTAGE_ITEMS=[
-  {id:'curse',  ic:'⛓️', name:'โซ่ตรวน',        cost:50,  desc:'เพิ่มการ์ดคำสาป Daze ในเด็คเป้า 1 ใบ'},
-  {id:'smoke',  ic:'💨', name:'ระเบิดควัน',      cost:60,  desc:'จอเป้าโดนหมอกบัง 18 วินาที'},
-  {id:'noblock',ic:'🔓', name:'ทำลายโล่',        cost:70,  desc:'เป้าใช้การ์ดบล็อกไม่ได้ 1 ศึก'},
-  {id:'weaken', ic:'💔', name:'คำสาปอ่อนแอ',     cost:90,  desc:'เป้าตีเบาลง -3 และโดนแรงขึ้น 1 ศึก'},
-  {id:'frenzy', ic:'🧪', name:'น้ำยาคลุ้มคลั่ง', cost:80,  desc:'ศัตรูชั้นหน้าของเป้า HP +20%'},
-  {id:'thief',  ic:'🦹', name:'โจรปล้นเสบียง',   cost:120, desc:'ดูดเครดิต 30 จากเป้ามาให้คุณ'},
+  {id:'curse',  ic:'⛓️', name:'โซ่ตรวน',        cost:30,  desc:'เพิ่มการ์ดคำสาป Daze ในเด็คเป้า 1 ใบ'},
+  {id:'smoke',  ic:'💨', name:'ระเบิดควัน',      cost:40,  desc:'จอเป้าโดนหมอกบัง 20 วินาที'},
+  {id:'noblock',ic:'🔓', name:'ทำลายโล่',        cost:45,  desc:'เป้าใช้การ์ดบล็อกไม่ได้ 1 ศึก'},
+  {id:'frenzy', ic:'🧪', name:'น้ำยาคลุ้มคลั่ง', cost:50,  desc:'ศัตรูชั้นหน้าของเป้า HP +20%'},
+  {id:'weaken', ic:'💔', name:'คำสาปอ่อนแอ',     cost:60,  desc:'เป้าตีเบาลง -3 และโดนแรงขึ้น 1 ศึก'},
+  {id:'thief',  ic:'🦹', name:'โจรปล้นเสบียง',   cost:75,  desc:'ดูดเครดิต 30 จากเป้ามาให้คุณ'},
 ];
 
 function openDarkMarket(){
@@ -1076,6 +1214,35 @@ function updateBagBtn(){
   const n=bagCount();
   const c=$('bag-count'); if(c) c.textContent=n>0?`(${n})`:'';
   const b=$('btn-bag'); if(b) b.classList.toggle('shop-open', n>0);
+}
+
+/* ===== ดูสำรับการ์ด ===== */
+function openDeck(){
+  // เด็คเต็ม = starter + การ์ดที่เก็บมา
+  const full=pvpStarterDeck().concat(MY_LOADOUT.deck||[]);
+  // นับจำนวนแต่ละใบ
+  const counts={};
+  full.forEach(id=>{ counts[id]=(counts[id]||0)+1; });
+  // เรียงตามประเภท
+  const order={attack:0,magic:1,defense:2,skill:3,curse:4};
+  const ids=Object.keys(counts).sort((a,b)=>{
+    const ca=PVP_CARDS[a], cb=PVP_CARDS[b];
+    return (order[ca.type]??9)-(order[cb.type]??9) || (cb.cost-ca.cost);
+  });
+  $('deck-total').textContent='('+full.length+' ใบ)';
+  const box=$('deck-list'); box.innerHTML='';
+  ids.forEach(id=>{
+    const card=PVP_CARDS[id];
+    const ti={attack:'⚔️',defense:'🛡️',magic:'🔥',skill:'✨',curse:'💫'}[card.type]||'';
+    const el=document.createElement('div');
+    el.className='deck-card t-'+card.type+(card.rarity?' r-'+card.rarity:'');
+    el.innerHTML=`<span class="dc-cost">${card.curse?'✕':card.cost}</span>
+      <span class="dc-name">${ti} ${card.name}</span>
+      <span class="dc-x">×${counts[id]}</span>
+      <span class="dc-desc">${card.desc}</span>`;
+    box.appendChild(el);
+  });
+  $('deck-modal').classList.add('open');
 }
 function openBag(){
   if(bagCount()===0){ toast('กระเป๋าว่าง — ซื้อของจากร้านค้ามืดก่อน'); return; }
@@ -1161,7 +1328,7 @@ function applySabotageToPending(type, from, fromId, amount){
 function triggerSmokeScreen(from){
   toast(`💨 ${from} ปล่อยระเบิดควัน!`);
   document.body.classList.add('smoke');
-  setTimeout(()=>document.body.classList.remove('smoke'), 18000);
+  setTimeout(()=>document.body.classList.remove('smoke'), 20000);
 }
 function consumePendingSabotage(){
   const s={
@@ -1436,6 +1603,10 @@ $('reward-skip').onclick=skipRewardCard;
 $('dm-close').onclick=()=>$('dm-modal').classList.remove('open');
 $('dm-modal').addEventListener('click',e=>{ if(e.target.id==='dm-modal')$('dm-modal').classList.remove('open'); });
 $('btn-bag').onclick=openBag;
+$('btn-deck').onclick=openDeck;
+$('reveal-go').onclick=()=>{ enterRace(); renderRace(); };
+$('deck-close').onclick=()=>$('deck-modal').classList.remove('open');
+$('deck-modal').addEventListener('click',e=>{ if(e.target.id==='deck-modal')$('deck-modal').classList.remove('open'); });
 $('bag-close').onclick=()=>$('bag-modal').classList.remove('open');
 $('bag-modal').addEventListener('click',e=>{ if(e.target.id==='bag-modal')$('bag-modal').classList.remove('open'); });
 $('bt-endturn').onclick=onEndTurn;
@@ -1443,7 +1614,8 @@ $('draft-next').onclick=draftNext;
 $('btn-stat-info').onclick=showStatInfo;
 $('stat-info-close').onclick=()=>$('stat-info-modal').classList.remove('open');
 $('stat-info-modal').addEventListener('click',e=>{ if(e.target.id==='stat-info-modal')$('stat-info-modal').classList.remove('open'); });
-$('btn-rematch').onclick=()=>{ leaveRoom(); };
+$('btn-rematch').onclick=()=>{ backToLobby(); };
+$('btn-leave-end').onclick=()=>{ leaveRoom(); };
 
 // prefill saved name
 const savedName=localStorage.getItem('ct_pvp_name')||'';
