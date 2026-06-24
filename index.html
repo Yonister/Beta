@@ -472,7 +472,7 @@ const PVP_RELICS = {
   manastone: {id:'manastone',  ic:'💎', name:'ศิลามานา',
     desc:'มานาสูงสุด +1 ทุกศึก', rarity:'uncommon'},
   vampfang:  {id:'vampfang',   ic:'🦷', name:'เขี้ยวดูดเลือด',
-    desc:'การ์ดโจมตีกายทุกใบดูดเลือด 1', rarity:'rare'},
+    desc:'การ์ดโจมตีกายทุกใบที่ตีโดน → ฟื้น 2 (คงที่)', rarity:'rare'},
 };
 const PVP_RELIC_IDS = Object.keys(PVP_RELICS);
 
@@ -542,13 +542,10 @@ B_playCard = function(B, handIdx){
     }
   }
 
-  // ----- VAMPFANG relic: ทำให้การ์ดโจมตีกายดูดเลือด 1 ชั่วคราว -----
-  let vampApplied = false, savedLifesteal = null, savedDmg2 = null;
-  if(B._relicVampFang && card && card.type==='attack' && !card.lifesteal && card.dmg){
-    savedLifesteal = card.lifesteal;
-    card.lifesteal = true;
-    vampApplied = true;
-  }
+  // ----- VAMPFANG relic: ดูดเลือดค่าคงที่ต่อใบ (จัดการหลัง original รัน) -----
+  // จำ HP ศัตรูก่อน เพื่อเช็คว่า "ตีโดนจริง" ค่อยฟื้น (กันฟื้นฟรีตอนโดนบล็อก/พลาด)
+  const _vampOn = (B._relicVampFang && card && card.type==='attack' && !card.lifesteal && card.dmg);
+  const _ehpBeforeVamp = (_vampOn && B.enemy) ? B.enemy.hp : null;
 
   // ----- AEGIS BASH: ดาเมจ = บล็อกที่มีตอนนี้ (set dmg ชั่วคราว) -----
   let bashApplied = false, savedBashDmg = null;
@@ -567,7 +564,12 @@ B_playCard = function(B, handIdx){
 
   // คืนค่า object การ์ดให้กลับเป็นเดิมเสมอ (กัน mutate ถาวร!)
   if(comboApplied){ card.dmg = savedDmg; if(res && res.log) res.log.push(`🥊 คอมโบ! +${card.combo}`); }
-  if(vampApplied){ card.lifesteal = savedLifesteal; }
+  // VAMPFANG: ฟื้นคงที่ 2 ต่อใบโจมตี เฉพาะตอนตีโดนจริง (ไม่สเกลตามดาเมจ)
+  if(_vampOn && res && res.ok && _ehpBeforeVamp!=null && B.enemy.hp < _ehpBeforeVamp && B.php!=null && B._mod!=='noheal'){
+    const VAMP_FLAT = 2;
+    B.php = Math.min(B.pmaxHp, B.php + VAMP_FLAT);
+    if(res.log) res.log.push(`🦷 ดูดเลือด ${VAMP_FLAT}`);
+  }
   if(bashApplied){
     if(res && res.ok && res.log) res.log.push(`🛡️→⚔️ แปลงโล่เป็นดาเมจ ${card.dmg}`);
     // ใช้โล่เป็นหมัด → โล่หมดไป (กันแรงเกิน: ได้ทั้งตีทั้งกันไม่ได้)
