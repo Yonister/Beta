@@ -273,7 +273,7 @@ function B_playCard(B, handIdx){
     if(B._mod==='noheal'){ log.push('🚫 ห้ามรักษา! ฮีลไม่ติด'); }
     else { B.php = Math.min(B.pmaxHp, B.php + card.heal); log.push(`ฟื้น ${card.heal}`); }
   }
-  if(card.manaGain){ B.mana += card.manaGain; log.push(`มานา +${card.manaGain}`); }
+  if(card.manaGain){ B.mana = Math.min(B.maxMana, B.mana + card.manaGain); log.push(`มานา +${card.manaGain}`); }
   if(card.draw){ B_drawCard(B, card.draw); log.push(`หยิบ ${card.draw}`); }
   if(card.burn){ B.enemy.burn = (B.enemy.burn||0) + card.burn + (B.intBonus||0); log.push(`ไฟ ${card.burn+(B.intBonus||0)}`); }
   if(card.poison){ B.enemy.poison = (B.enemy.poison||0) + card.poison + (B.intBonus||0); log.push(`☠️ พิษ ${card.poison+(B.intBonus||0)}`); }
@@ -309,23 +309,32 @@ function B_endTurn(B){
   // discard hand
   B.disc = B.disc.concat(B.hand);
   B.hand = [];
-  // 🔥 ไฟลุก — ผู้เล่นโดนไฟกัดตอนจบเทิร์น
+  // === DoT tick ตอนจบเทิร์น: ให้ทุกฝั่งโดนกัดก่อน แล้วค่อยตัดสินผล ===
+  // (ศัตรูตายจาก DoT ในเทิร์นเดียวกัน = ผู้เล่นชนะ แม้จะตายจากไฟพร้อมกัน)
+  const dotActions = [];
+  // 🔥 ไฟลุก — ผู้เล่นโดนไฟกัด
+  let playerBurnDmg = 0;
   if(B._playerBurn > 0 && B.php!=null){
-    B.php = Math.max(0, B.php - B._playerBurn);
+    playerBurnDmg = B._playerBurn;
+    B.php = Math.max(0, B.php - playerBurnDmg);
     B._playerBurn = Math.max(0, B._playerBurn - 1);
-    if(B.php <= 0){ B.over = true; B.won = false; return {enemyActions:[{type:'burn',dmg:1}]}; }
   }
   // enemy burn tick
   if(B.enemy.burn > 0){
     B.enemy.hp = Math.max(0, B.enemy.hp - B.enemy.burn);
     B.enemy.burn = Math.max(0, B.enemy.burn - 1);
-    if(B.enemy.hp <= 0){ B.over = true; B.won = true; return {enemyActions:[]}; }
   }
-  // enemy poison tick (พิษไม่ลดลง — ดีลคงที่จนหมดเอง? ที่นี่ลดทีละ 1)
+  // enemy poison tick (ดีลเท่า stack ปัจจุบัน แล้วลด stack ลงทีละ 1 ทุกเทิร์น)
   if(B.enemy.poison > 0){
     B.enemy.hp = Math.max(0, B.enemy.hp - B.enemy.poison);
     B.enemy.poison = Math.max(0, B.enemy.poison - 1);
-    if(B.enemy.hp <= 0){ B.over = true; B.won = true; return {enemyActions:[]}; }
+  }
+  // ตัดสินผลจาก DoT: ศัตรูตายให้ชนะก่อน (ได้ประโยชน์ผู้เล่น)
+  if(B.enemy.hp <= 0){ B.over = true; B.won = true; return {enemyActions: dotActions}; }
+  if(B.php <= 0){
+    B.over = true; B.won = false;
+    if(playerBurnDmg > 0) dotActions.push({type:'burn', dmg:playerBurnDmg});
+    return {enemyActions: dotActions};
   }
   // enemy acts
   const actions = B_enemyAct(B);
