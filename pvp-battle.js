@@ -66,7 +66,7 @@ const PVP_STATS = {
   def:  {id:'def',  name:'🛡️ DEF',  per:'ลดดาเมจที่โดน 3%/แต้ม (สูงสุด 30%)',     max:10},
   int:  {id:'int',  name:'🔮 INT',  per:'เวท/ไฟ/พิษ +1/แต้ม',                   max:10},
   spd:  {id:'spd',  name:'💨 SPD',  per:'จั่วเพิ่มเทิร์นแรก +1 ใบ ทุก 2 แต้ม',  max:10},
-  mana: {id:'mana', name:'💎 MANA', per:'มานาสูงสุด +1 ทุก 4 แต้ม (เพดาน +2)',  max:8},
+  mana: {id:'mana', name:'💎 MANA', per:'มานาสูงสุด +1 ทุก 2 แต้ม (เพดาน +2)',  max:8},
 };
 const PVP_STAT_IDS = Object.keys(PVP_STATS);
 const STAT_POINTS_TOTAL = 10;
@@ -97,8 +97,8 @@ function applyLoadout(B, loadout){
   B._defReduce=Math.min(0.30, (s.def||0)*0.03);
   // SPD — จั่วเพิ่มเทิร์นแรก +1 ใบ ทุก 2 แต้ม
   B._wealthDraw=(B._wealthDraw||0)+Math.floor((s.spd||0)/2);
-  // MANA — +1 ทุก 4 แต้ม เพดาน +2
-  B.maxMana=(B.maxMana||3)+Math.min(2,Math.floor((s.mana||0)/4));
+  // MANA — +1 ทุก 2 แต้ม เพดาน +2
+  B.maxMana=(B.maxMana||3)+Math.min(2,Math.floor((s.mana||0)/2));
 }
 // คำนวณ HP สูงสุดจากแต้ม (ใช้ตอนจบ draft) — ฐาน 100 + 6/แต้ม
 function maxHpFromStats(stats){ return 100 + (stats&&stats.hp?stats.hp*6:0); }
@@ -170,8 +170,8 @@ function createBattle(seed, floor, customDeck, sabotage){
     _mod: mod ? mod.id : null,
     _rng: rng,
   };
-  // มานาหนาแน่น (ชั้น 9): มานาสูงสุด +1
-  if(B._mod==='manadense'){ B.maxMana=4; B.mana=4; }
+  // มานาหนาแน่น (ชั้น 9): มานาสูงสุด +1 (บวกเพิ่มจากค่าเดิม ไม่ทับ)
+  if(B._mod==='manadense'){ B.maxMana=(B.maxMana||3)+1; B.mana=B.maxMana; }
   return B;
 }
 
