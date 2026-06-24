@@ -436,37 +436,51 @@ if(typeof PVP_PACK_POOL!=='undefined'){
    apply เข้า battle ผ่าน applyRelics(B) — เรียกหลัง applyLoadout
    =========================================================== */
 const PVP_RELICS = {
-  emberheart: {id:'emberheart', ic:'🔥', name:'หัวใจอัคนี',
-    desc:'เริ่มทุกศึกด้วยไฟใส่ศัตรู 3', rarity:'common'},
-  ironskin:   {id:'ironskin',   ic:'🪨', name:'ผิวเหล็ก',
-    desc:'เริ่มทุกเทิร์นด้วยบล็อก +3', rarity:'common'},
-  swiftboots: {id:'swiftboots', ic:'👟', name:'รองเท้าลม',
-    desc:'จั่วเพิ่ม 1 ใบเทิร์นแรกของทุกศึก', rarity:'common'},
-  bloodpact:  {id:'bloodpact',  ic:'🩸', name:'สัญญาเลือด',
-    desc:'ชนะศึกแล้วฟื้น 5 HP', rarity:'uncommon'},
-  manastone:  {id:'manastone',  ic:'💎', name:'ศิลามานา',
+  // === กลุ่ม SOCIAL — ผูกกับระบบป่วน/พายุ/ผี (หัวใจของเกม) ===
+  mirror:    {id:'mirror',    ic:'🪞', name:'กระจกเงา',
+    desc:'โดนของป่วน → สะท้อนกลับครึ่งหนึ่งอัตโนมัติ', rarity:'rare', social:true},
+  boiling:   {id:'boiling',   ic:'⚡', name:'เลือดเดือด',
+    desc:'ทุกครั้งที่โดนป่วน → ศึกถัดไปได้มานา +2 เทิร์นแรก', rarity:'uncommon', social:true},
+  harvest:   {id:'harvest',   ic:'🌾', name:'เก็บเกี่ยว',
+    desc:'ชนะศึกใน ≤3 เทิร์น → +15 เครดิต (ทุนไว้ป่วน)', rarity:'uncommon', social:true},
+  soulbind:  {id:'soulbind',  ic:'👻', name:'พันธะวิญญาณ',
+    desc:'ตอนเป็นผี ได้ Soul Coins เร็วขึ้น 2 เท่า', rarity:'common', social:true},
+  scavenger: {id:'scavenger', ic:'💰', name:'มือฉกฉวย',
+    desc:'ฆ่าศัตรูได้ → +3 เครดิตทุกศึก', rarity:'common', social:true},
+  stormward: {id:'stormward', ic:'🛡️', name:'ใจเด็ด',
+    desc:'พายุ Void ทำดาเมจคุณครึ่งเดียว', rarity:'rare', social:true},
+  // === กลุ่ม COMBAT — เก็บไว้ให้สาย build (passive) ===
+  emberheart:{id:'emberheart', ic:'🔥', name:'หัวใจอัคนี',
+    desc:'เริ่มทุกศึกด้วยไฟใส่ศัตรู 4', rarity:'common'},
+  manastone: {id:'manastone',  ic:'💎', name:'ศิลามานา',
     desc:'มานาสูงสุด +1 ทุกศึก', rarity:'uncommon'},
-  vampfang:   {id:'vampfang',   ic:'🦷', name:'เขี้ยวดูดเลือด',
+  vampfang:  {id:'vampfang',   ic:'🦷', name:'เขี้ยวดูดเลือด',
     desc:'การ์ดโจมตีกายทุกใบดูดเลือด 1', rarity:'rare'},
-  stormward:  {id:'stormward',  ic:'🛡️', name:'เครื่องรางพายุ',
-    desc:'พายุ Void ทำดาเมจคุณครึ่งเดียว', rarity:'rare'},
 };
 const PVP_RELIC_IDS = Object.keys(PVP_RELICS);
 
 // สถานะ relic ของผู้เล่น (กำหนดใน index ตอน finishDraft ด้วย — กันกรณีโหลดไฟล์ลำดับ)
 if(typeof window!=='undefined' && typeof window.MY_RELICS==='undefined') window.MY_RELICS=[];
+// flag: โดนป่วนมาในศึกที่ผ่านมา (boiling relic ใช้)
+if(typeof window!=='undefined' && typeof window.RELIC_WAS_SABOTAGED==='undefined') window.RELIC_WAS_SABOTAGED=false;
+
+function hasRelic(rid){ return (typeof MY_RELICS!=='undefined') && MY_RELICS.includes(rid); }
 
 // apply relic เข้า battle object — เรียกใน startFight หลัง applyLoadout
 function applyRelics(B, relics){
   if(!relics || !relics.length) return;
   for(const rid of relics){
     switch(rid){
-      case 'emberheart': B.enemy.burn = (B.enemy.burn||0) + 3; break;
-      case 'ironskin':   B.startBlock = (B.startBlock||0) + 3; break;
-      case 'swiftboots': B._wealthDraw = (B._wealthDraw||0) + 1; break;
+      case 'emberheart': B.enemy.burn = (B.enemy.burn||0) + 4; break;
       case 'manastone':  B.maxMana = (B.maxMana||3) + 1; B.mana = B.maxMana; break;
       case 'vampfang':   B._relicVampFang = true; break;
-      // bloodpact / stormward จัดการนอก battle (ดูด้านล่าง)
+      // boiling: ถ้าศึกก่อนโดนป่วน → มานา +2 เทิร์นแรก
+      case 'boiling':
+        if(typeof RELIC_WAS_SABOTAGED!=='undefined' && RELIC_WAS_SABOTAGED){
+          B._relicBoilMana = 2;
+        }
+        break;
+      // mirror / harvest / soulbind / scavenger / stormward จัดการนอก battle
     }
   }
 }
@@ -481,6 +495,12 @@ const _orig_B_startTurn = B_startTurn;
 B_startTurn = function(B){
   _orig_B_startTurn(B);
   B._cardsThisTurn = 0;   // รีเซ็ตตัวนับคอมโบ
+  // boiling relic: โดนป่วนมา → มานา +2 เฉพาะเทิร์นแรก
+  if(B.turn===1 && B._relicBoilMana){
+    B.maxMana = (B.maxMana||3) + B._relicBoilMana;
+    B.mana = B.maxMana;
+    B._relicBoilMana = 0;
+  }
 };
 
 // --- 3.2 ครอบ B_playCard: combo / exhaust / scry / vampfang relic ---
@@ -553,12 +573,15 @@ function applyMyRelicsToBattle(B){
   applyRelics(B, (typeof MY_RELICS!=='undefined') ? MY_RELICS : []);
 }
 
-// เรียกตอนชนะศึก (endFight ฝั่งชนะ) — bloodpact ฟื้นเลือด
-function relicsOnWin(){
-  const relics = (typeof MY_RELICS!=='undefined') ? MY_RELICS : [];
-  if(relics.includes('bloodpact') && ME.hp>0){
-    ME.hp = Math.min(ME.maxHp, ME.hp + 5);
-  }
+// เรียกตอนชนะศึก (endFight ฝั่งชนะ) — คืน {credit, log} ให้ index จัดการต่อ
+// B = battle object ที่เพิ่งจบ (CUR_B) — ใช้ดูจำนวนเทิร์น
+function relicsOnWin(B){
+  let credit = 0; const log = [];
+  // scavenger: ฆ่าศัตรูได้ +3 เครดิตทุกศึก
+  if(hasRelic('scavenger')){ credit += 3; }
+  // harvest: ชนะใน ≤3 เทิร์น +15 เครดิต
+  if(hasRelic('harvest') && B && B.turn<=3){ credit += 15; log.push('🌾 เก็บเกี่ยว! +15 เครดิต'); }
+  return { credit, log };
 }
 
 // เรียกตอนพายุ Void จะหัก HP — คืนค่าดาเมจที่ควรหัก (stormward = ครึ่งเดียว)
@@ -906,6 +929,14 @@ catch(e){ console.warn('Firebase init failed',e); }
   .draft-deck .dchip{font-size:.62em;background:#1a1240;border:1px solid var(--line);border-radius:6px;padding:2px 6px;color:#b0a0d0}
   .draft-wait{text-align:center;color:var(--ok);font-size:.84em;margin-top:8px;font-weight:700}
 
+  /* ===== Relic reward (3 เลือก 1) ===== */
+  .relic-opt{width:130px;min-height:120px;justify-content:flex-start}
+  .relic-opt .relic-ic{font-size:2em;line-height:1.1;margin-bottom:2px}
+  .relic-opt .o-name{font-size:.74em}
+  .relic-opt .o-desc{font-size:.64em;margin-top:2px}
+  .relic-social{display:inline-block;font-size:.85em;background:#3a1a5a;color:#c89cff;border-radius:8px;padding:0 5px;margin-left:2px}
+  .relic-combat{display:inline-block;font-size:.85em;background:#15304a;color:#7ab8ff;border-radius:8px;padding:0 5px;margin-left:2px}
+
   /* ===== Stat allocation ===== */
   .btn-info{background:none;border:1px solid var(--purple);color:var(--purple-br);border-radius:8px;padding:5px 12px;font-size:.78em;cursor:pointer;font-family:inherit}
   .btn-info:active{background:rgba(122,60,240,.2)}
@@ -1094,6 +1125,17 @@ catch(e){ console.warn('Firebase init failed',e); }
     <button class="btn btn-dim" id="reward-skip" style="margin-top:14px">ข้าม (ไม่เอาการ์ด)</button>
   </div>
 
+  <!-- ===== SCREEN: RELIC REWARD (3 เลือก 1) ===== -->
+  <div class="scr" id="scr-relic">
+    <div class="draft-head">
+      <div class="draft-title">💠 เครื่องราง — ชั้น <span id="relic-floor">5</span>!</div>
+    </div>
+    <div class="draft-step">เลือกเครื่องราง <b>1 ชิ้น</b> (ถาวรทั้งเกม)</div>
+    <div class="draft-hint">🟣 ป่วน = ผูกกับการแกล้ง/พายุ/ผี · 🔵 บิลด์ = เสริมการต่อสู้</div>
+    <div class="draft-grid" id="relic-cards"></div>
+    <button class="btn btn-dim" id="relic-skip" style="margin-top:14px">ข้าม (ไม่เอาเครื่องราง)</button>
+  </div>
+
   <!-- ===== SCREEN: REST STOP (ชั้น 11 จุดพักแรม) ===== -->
   <div class="scr" id="scr-rest">
     <div class="draft-head">
@@ -1158,6 +1200,7 @@ catch(e){ console.warn('Firebase init failed',e); }
     <!-- my big status -->
     <div class="my-status">
       <div class="my-floor">🗼 ชั้นของคุณ: <b id="my-floor-big">0</b> <span style="margin-left:12px">💳 เครดิต: <b id="my-gold" style="color:var(--gold)">0</b></span></div>
+      <div id="my-relics" style="font-size:1.1em;margin-top:2px;min-height:1.2em"></div>
       <div class="hpwrap me" style="margin-top:6px">
         <div class="hl"><span id="me-name">คุณ</span><span id="me-hp-txt">100/100</span></div>
         <div class="hptrack"><div class="hpfill" id="me-hp-fill" style="width:100%"></div></div>
@@ -1495,24 +1538,25 @@ function attachRoomListener(){
       const inReward=$('scr-reward').classList.contains('active');
       const inReveal=$('scr-reveal').classList.contains('active');
       const inRest=$('scr-rest').classList.contains('active');
+      const inRelic=$('scr-relic').classList.contains('active');
       // ครั้งแรกที่เข้า playing → โชว์ reveal "รู้เขารู้เรา" ก่อน (ครั้งเดียวต่อเกม)
-      if(!REVEAL_SHOWN && !inBattle && !inEnd && !inReward && !inRest){
+      if(!REVEAL_SHOWN && !inBattle && !inEnd && !inReward && !inRest && !inRelic){
         REVEAL_SHOWN=true;
         stopDraftTimer();
         showReveal(players);
         return;
       }
       // draft จบแล้วเมื่อ playing — ออกจากจอ draft ไป race ได้
-      // อย่าลากกลับจอ race ถ้ากำลังสู้/เลือกการ์ด/จบเกม/ดู reveal/พักแรม
-      if(!inBattle && !inEnd && !inReward && !inReveal && !inRest){
+      // อย่าลากกลับจอ race ถ้ากำลังสู้/เลือกการ์ด/จบเกม/ดู reveal/พักแรม/เลือกเครื่องราง
+      if(!inBattle && !inEnd && !inReward && !inReveal && !inRest && !inRelic){
         if(!$('scr-race').classList.contains('active')){ stopDraftTimer(); enterRace(); }
         renderRace();
-      } else if(!inReveal && !inRest){
+      } else if(!inReveal && !inRest && !inRelic){
         updateNextFloorUI();
       }
       checkWinConditions(data, players);
     } else {
-      if(!$('scr-battle').classList.contains('active') && !$('scr-reward').classList.contains('active') && !$('scr-draft').classList.contains('active') && !$('scr-reveal').classList.contains('active') && !$('scr-rest').classList.contains('active')) renderRace();
+      if(!$('scr-battle').classList.contains('active') && !$('scr-reward').classList.contains('active') && !$('scr-draft').classList.contains('active') && !$('scr-reveal').classList.contains('active') && !$('scr-rest').classList.contains('active') && !$('scr-relic').classList.contains('active')) renderRace();
     }
     // (host เริ่มเกมด้วยปุ่ม hostStartGame — ไม่ auto แล้ว)
   });
@@ -1744,6 +1788,12 @@ function renderRace(){
   // my big status
   $('my-floor-big').textContent=ME.floor;
   $('my-gold').textContent=ME.gold||0;
+  const relEl=$('my-relics');
+  if(relEl){
+    relEl.innerHTML = (typeof MY_RELICS!=='undefined'&&MY_RELICS.length)
+      ? MY_RELICS.map(id=>{const r=PVP_RELICS[id];return r?`<span title="${r.name}: ${r.desc}">${r.ic}</span>`:'';}).join(' ')
+      : '';
+  }
   $('me-name').textContent=ME.name;
   $('me-hp-txt').textContent=`${ME.hp}/${ME.maxHp}`;
   setHp('me',ME.hp,ME.maxHp);
@@ -1791,7 +1841,7 @@ function startGhostMode(){
   // Soul Coins +5 ทุก 10 วิ
   _ghostTimer=setInterval(()=>{
     if(ME.hp>0 || ROOM._finished){ stopGhostMode(); return; }
-    SOUL_COINS+=5;
+    SOUL_COINS += hasRelic('soulbind') ? 10 : 5;   // 👻 พันธะวิญญาณ: เร็วขึ้น 2 เท่า
     updateSoulUI();
   }, 10000);
 }
@@ -1983,6 +2033,7 @@ function finishDraft(){
   MY_LOADOUT={ stats:Object.assign({},DRAFT.stats), deck:startDeck };
   MY_INVENTORY={};   // เริ่มเกม กระเป๋าว่าง
   MY_RELICS=[];      // เริ่มเกม ยังไม่มีเครื่องราง
+  RELIC_WAS_SABOTAGED=false; PENDING_RELIC_PICK=false;   // เคลียร์ธง relic
   AEGIS_FLOORS=0;
   SOUL_COINS=0; stopGhostMode();   // รีเซ็ตผี
   PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false, blind:false, cardBurn:false };
@@ -2212,6 +2263,14 @@ function applySabotageToPending(type, from, fromId, amount){
     ROOM.ref.child('sabotageQueue/'+fromId).push({ type, from:ME.name, fromId:ME.id, reflected:true, at:firebase.database.ServerValue.TIMESTAMP });
     return;   // เราไม่โดน
   }
+  // 🪞 กระจกเงา relic — โดนป่วน → สะท้อนของชิ้นเดียวกันกลับไปหาคนส่งด้วย (เจ็บทั้งคู่)
+  //   ต่างจาก Aegis: เรายังโดนอยู่ แต่คนส่งโดนตามไปด้วย = "แตะแล้วเจ็บ"
+  if(isHostile && hasRelic('mirror') && fromId && fromId!==ME.id){
+    ROOM.ref.child('sabotageQueue/'+fromId).push({ type, from:ME.name+' 🪞', fromId:ME.id, reflected:true, at:firebase.database.ServerValue.TIMESTAMP });
+    toast(`🪞 กระจกเงาสะท้อน "${sabName(type)}" กลับไปด้วย!`);
+  }
+  // ⚡ เลือดเดือด relic — จำว่าโดนป่วน → ศึกหน้ามานา +2
+  if(isHostile && hasRelic('boiling')){ RELIC_WAS_SABOTAGED = true; }
   if(type==='curse'){ PENDING_SABOTAGE.curseCards++; toast(`⛓️ ${from} ส่งคำสาปมา!`); }
   else if(type==='frenzy'){ PENDING_SABOTAGE.enemyHpBoost=0.20; toast(`🧪 ${from} เสกศัตรูให้แกร่งขึ้น!`); }
   else if(type==='noblock'){ PENDING_SABOTAGE.noBlock=true; toast(`🔓 ${from} ทำลายโล่คุณ!`); }
@@ -2347,6 +2406,7 @@ function startFight(){
   B.php=ME.hp; B.pmaxHp=ME.maxHp;
   applyLoadout(B, MY_LOADOUT);   // stats (atk/hp/def/int/spd/mana)
   applyMyRelicsToBattle(B);       // เครื่องราง (relic)
+  if(typeof RELIC_WAS_SABOTAGED!=='undefined') RELIC_WAS_SABOTAGED=false;   // ใช้แล้วเคลียร์ (boiling ใช้ครั้งเดียว)
   B_startTurn(B);
   CUR_B=B;
   showScr('scr-battle');
@@ -2450,14 +2510,15 @@ function endFight(){
   ME.hp=Math.max(0,B.php);
   if(B.won){
     ME.floor++;
-    relicsOnWin();   // bloodpact ฟื้น 5 HP
+    const _rel=relicsOnWin(B);   // harvest/scavenger → เครดิตพิเศษ
     // === Gold (แบบ B: คนตามหลังได้มากกว่า) ===
     const base=12;
     const behind=Math.max(0, leaderFloor()-ME.floor);  // ตามหลังคนนำกี่ชั้น
     const catchupBonus=behind*4;                          // ยิ่งตามหลังยิ่งได้เยอะ
-    const gain=base+catchupBonus;
+    const gain=base+catchupBonus+(_rel.credit||0);
     ME.gold=(ME.gold||0)+gain;
-    btLog(`🎉 ชนะ! ขึ้นชั้น ${ME.floor} · +${gain} เครดิต${catchupBonus>0?' (โบนัสไล่ตาม)':''}`);
+    btLog(`🎉 ชนะ! ขึ้นชั้น ${ME.floor} · +${gain} เครดิต${catchupBonus>0?' (โบนัสไล่ตาม)':''}${_rel.credit?' (โบนัสเครื่องราง)':''}`);
+    if(_rel.log&&_rel.log.length) _rel.log.forEach(l=>btLog(l));
     // ข่าวส่วนรวม — เฉพาะหมุดสำคัญ (กัน feed รก)
     if(ME.floor>21) pushEvent(`🏆 ${ME.name} พิชิตยอดหอคอย!`);
     else if(ME.floor===11) pushEvent(`🏕️ ${ME.name} ถึงจุดพักแรมชั้น 11`);
@@ -2466,16 +2527,14 @@ function endFight(){
     btLog('💀 แพ้...');
     if(ME.hp<=0) pushEvent(`💀 ${ME.name} ตกหอคอยที่ชั้น ${ME.floor+1}!`);
   }
-  if(B.won && ME.floor>0 && ME.floor%5===0 && ME.floor!==11){
-    const _rc=rollRelicChoices(1, ROOM.seed);
-    if(_rc.length) grantRelic(_rc[0]);   // แจกเครื่องรางสุ่ม 1 ชิ้น
-  }
+  // ชั้นหาร 5 (ไม่ใช่ 11) → ตั้งธงให้โชว์หน้าเลือก relic หลังเลือกการ์ด
+  const _relicFloor = (B.won && ME.floor>0 && ME.floor%5===0 && ME.floor!==11);
   pushMyState();
   if(B.won && ME.floor===11){
     // ชั้น 11 = จุดพักแรม
     setTimeout(()=>{ CUR_B=null; showRestStop(); }, 900);
   } else if(B.won && ME.floor<=21){
-    // เลือกการ์ดเพิ่ม 1 ใบ (เหมือน SOLO) — แก้ deck น่าเบื่อ
+    PENDING_RELIC_PICK = _relicFloor;   // จำไว้ โชว์ต่อจากหน้าการ์ด
     setTimeout(()=>{ CUR_B=null; showCardReward(); }, 900);
   } else {
     setTimeout(()=>{
@@ -2525,19 +2584,65 @@ function showCardReward(){
   showScr('scr-reward');
 }
 let _rewardPicking=false;
+let PENDING_RELIC_PICK=false;
+// ไปต่อหลังเลือกการ์ด: ถ้ามี relic รอ → โชว์หน้าเลือก relic, ไม่งั้นกลับ race
+function afterRewardNext(){
+  if(PENDING_RELIC_PICK){
+    PENDING_RELIC_PICK=false;
+    showRelicReward();
+    return;
+  }
+  showScr('scr-race');
+  updateNextFloorUI();
+  renderRace();
+}
 function pickRewardCard(cid){
   if(_rewardPicking) return;        // กันกดซ้ำ
   _rewardPicking=true;
   if(!MY_LOADOUT.deck) MY_LOADOUT.deck=[];
   MY_LOADOUT.deck.push(cid);
   toast(`+ ${PVP_CARDS[cid].name} เข้าเด็ค!`);
-  showScr('scr-race');
-  updateNextFloorUI();
-  renderRace();
+  afterRewardNext();
 }
 function skipRewardCard(){
   if(_rewardPicking) return;
   _rewardPicking=true;
+  afterRewardNext();
+}
+
+/* ===== RELIC REWARD (3 เลือก 1) ===== */
+let _relicPicking=false;
+function showRelicReward(){
+  const choices=rollRelicChoices(3, ROOM.seed);
+  if(!choices.length){   // ไม่มี relic เหลือให้เลือก → ข้ามไป race
+    showScr('scr-race'); updateNextFloorUI(); renderRace(); return;
+  }
+  _relicPicking=false;
+  const box=$('relic-cards'); box.innerHTML='';
+  choices.forEach(rid=>{
+    const r=PVP_RELICS[rid];
+    const rtag=r.rarity==='rare'?' ⭐':(r.rarity==='uncommon'?' ✦':'');
+    const tag=r.social?'<span class="relic-social">ป่วน</span>':'<span class="relic-combat">บิลด์</span>';
+    const el=document.createElement('div');
+    el.className='draft-opt relic-opt'+(r.rarity?' r-'+r.rarity:'');
+    el.innerHTML=`<div class="relic-ic">${r.ic}</div><div class="o-name">${r.name}${rtag} ${tag}</div><div class="o-desc">${r.desc}</div>`;
+    el.onclick=()=>pickRelicReward(rid);
+    box.appendChild(el);
+  });
+  $('relic-floor').textContent=ME.floor;
+  showScr('scr-relic');
+}
+function pickRelicReward(rid){
+  if(_relicPicking) return;
+  _relicPicking=true;
+  grantRelic(rid);
+  showScr('scr-race');
+  updateNextFloorUI();
+  renderRace();
+}
+function skipRelicReward(){
+  if(_relicPicking) return;
+  _relicPicking=true;
   showScr('scr-race');
   updateNextFloorUI();
   renderRace();
@@ -2709,6 +2814,7 @@ $('btn-leave-race').onclick=leaveRoom;
 $('btn-fight').onclick=startFight;
 $('btn-darkmarket').onclick=openDarkMarket;
 $('reward-skip').onclick=skipRewardCard;
+$('relic-skip').onclick=skipRelicReward;
 $('dm-close').onclick=()=>$('dm-modal').classList.remove('open');
 $('dm-modal').addEventListener('click',e=>{ if(e.target.id==='dm-modal')$('dm-modal').classList.remove('open'); });
 $('btn-bag').onclick=openBag;
