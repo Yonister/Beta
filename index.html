@@ -6,735 +6,7 @@
 <title>Card Tower — ศึกร่างเงา (PvP)</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script>
-/* === pvp-battle.js (inlined) === */
-/* ============================================================
-   pvp-battle.js — Minimal self-contained battle engine for PvP
-   ตัด dependency ของ solo (map/relic/skill/ultimate) ออก
-   เหลือแก่น: เด็ค + มือ + มานา + เล่นการ์ด + ศัตรู + เทิร์น
-   ออกแบบให้ state อยู่ใน object เดียว (BATTLE) เพื่อ sync ง่าย
-   ============================================================ */
-
-/* ---------- Card database ---------- */
-const PVP_CARDS = {
-  // --- พื้นฐาน ---
-  strike:   {id:'strike',  name:'Strike',     cost:1, type:'attack',  dmg:6,  rarity:'common', desc:'6 ดาเมจ'},
-  heavy:    {id:'heavy',   name:'Heavy Blow', cost:2, type:'attack',  dmg:14, rarity:'common', desc:'14 ดาเมจ'},
-  slash:    {id:'slash',   name:'Slash',      cost:1, type:'attack',  dmg:4, hits:2, rarity:'common', desc:'4 ดาเมจ ×2'},
-  guard:    {id:'guard',   name:'Guard',      cost:1, type:'defense', block:6,  rarity:'common', desc:'+6 บล็อก'},
-  ironwall: {id:'ironwall',name:'Iron Wall',  cost:2, type:'defense', block:14, rarity:'common', desc:'+14 บล็อก'},
-  potion:   {id:'potion',  name:'Potion',     cost:1, type:'skill',   heal:8,  rarity:'common', desc:'ฟื้น 8 HP'},
-  quickdraw:{id:'quickdraw',name:'Quick Draw',cost:1, type:'skill',   draw:2,  rarity:'common', desc:'หยิบ 2 ใบ'},
-  fireball: {id:'fireball',name:'Fireball',   cost:2, type:'magic',   dmg:10, burn:3, rarity:'common', desc:'10 ดมจ + ไฟ 3'},
-  daze:     {id:'daze',    name:'Daze 💫',    cost:1, type:'curse',   curse:true, desc:'คำสาป! เล่นไม่ได้ผล (เปลืองที่ในมือ)'},
-
-  // --- กลุ่ม Combo/จั่ว (เด็คหมุนเร็ว) ---
-  jab:      {id:'jab',     name:'Jab',        cost:0, type:'attack',  dmg:3,  rarity:'common', desc:'3 ดาเมจ (ฟรี)'},
-  flurry:   {id:'flurry',  name:'Flurry',     cost:1, type:'attack',  dmg:2, hits:3, rarity:'uncommon', desc:'2 ดาเมจ ×3'},
-  adrenaline:{id:'adrenaline',name:'Adrenaline',cost:0,type:'skill',  manaGain:2, draw:1, rarity:'uncommon', desc:'มานา+2 + จั่ว 1 (ฟรี)'},
-  echo:     {id:'echo',    name:'Echo',       cost:1, type:'skill',   echo:true, rarity:'rare', desc:'การ์ดโจมตีใบถัดไปดีล 2 เท่า'},
-
-  // --- กลุ่ม Block/หนาม (ตั้งรับสวนกลับ) ---
-  thorns:   {id:'thorns',  name:'Thorns',     cost:1, type:'defense', block:5, thorns:3, rarity:'uncommon', desc:'+5 บล็อก + หนาม 3 (สะท้อนเมื่อโดนตี)'},
-  bulwark:  {id:'bulwark', name:'Bulwark',    cost:2, type:'defense', block:10, keepBlock:true, rarity:'rare', desc:'+10 บล็อก + บล็อกไม่หายเทิร์นหน้า'},
-  bash:     {id:'bash',    name:'Bash',       cost:2, type:'attack',  dmg:8, block:8, rarity:'uncommon', desc:'8 ดาเมจ + 8 บล็อก'},
-
-  // --- กลุ่ม Burn/พิษ (ดาเมจต่อเนื่อง) ---
-  poisondart:{id:'poisondart',name:'Poison Dart',cost:1,type:'magic', dmg:2, poison:4, rarity:'uncommon', desc:'2 ดมจ + พิษ 4'},
-  ignite:   {id:'ignite',  name:'Ignite',     cost:2, type:'magic',   burn:8, rarity:'uncommon', desc:'ไฟ 8 (ดาเมจต่อเนื่อง)'},
-
-  // --- กลุ่ม Lifesteal/ยืนระยะ ---
-  vampire:  {id:'vampire', name:'Vampire Strike',cost:2,type:'attack', dmg:8, lifesteal:true, rarity:'rare', desc:'8 ดาเมจ + ฟื้นเท่าดาเมจที่ดีล'},
-  drain:    {id:'drain',   name:'Life Drain', cost:1, type:'magic',   dmg:5, lifesteal:true, rarity:'uncommon', desc:'5 ดมจ + ฟื้นเท่าที่ดีล'},
-
-  // --- กลุ่ม High-risk ---
-  allin:    {id:'allin',   name:'All In',     cost:2, type:'attack',  dmg:22, selfDmg:6, rarity:'rare', desc:'22 ดาเมจ — แต่เสีย 6 HP'},
-  reckless: {id:'reckless',name:'Reckless',   cost:1, type:'attack',  dmg:10, discardRandom:1, rarity:'uncommon', desc:'10 ดาเมจ — ทิ้งการ์ดสุ่ม 1 ใบ'},
-};
-
-const CARD_RARITY={common:1,uncommon:2,rare:3};
-
-/* ---------- Enemy templates (ปรับยากขึ้น) ---------- */
-const PVP_ENEMIES = [
-  {name:'Slime',    spr:'🟢', hp:38, atk:8,  pat:['atk','atk','def']},
-  {name:'Bat',      spr:'🦇', hp:30, atk:11, pat:['atk','atk','atk']},
-  {name:'Golem',    spr:'🗿', hp:58, atk:8,  pat:['def','atk','atk'], armor:4, desc:'เกราะหนา (ลดดาเมจ)'},
-  {name:'Wraith',   spr:'👻', hp:44, atk:10, pat:['atk','def','atk']},
-  {name:'Troll',    spr:'🧌', hp:54, atk:9,  pat:['atk','atk','heal'], regen:7, desc:'ฟื้นเลือดตัวเอง'},
-  {name:'Cactus',   spr:'🌵', hp:46, atk:7,  pat:['def','atk','def'], thorns:5, desc:'หนาม (ตีโดนเจ็บเอง)'},
-  {name:'Assassin', spr:'🥷', hp:28, atk:16, pat:['atk','atk','atk'], desc:'ตีแรงมาก HP น้อย'},
-  {name:'Mimic',    spr:'🎁', hp:48, atk:10, pat:['def','atk','rage'], desc:'ยิ่งโดนตียิ่งโกรธ'},
-  {name:'Shaman',   spr:'🧙', hp:42, atk:9,  pat:['heal','atk','def'], regen:6, desc:'หมอผีฟื้นเลือด'},
-];
-// บอสชั้น 21
-const PVP_BOSS = {name:'Tower Lord',spr:'👹', hp:150, atk:13, pat:['atk','def','rage','atk'], armor:3, desc:'เจ้าหอคอย — บอสสุดท้าย'};
-
-/* ---------- Stat allocation system (10 แต้ม กระจาย 6 stat) ---------- */
-const PVP_STATS = {
-  atk:  {id:'atk',  name:'⚔️ ATK',  per:'การ์ดโจมตีกาย +1 ดาเมจ/แต้ม',         max:10},
-  hp:   {id:'hp',   name:'❤️ HP',   per:'เลือดสูงสุด +6/แต้ม',                  max:10},
-  def:  {id:'def',  name:'🛡️ DEF',  per:'ลดดาเมจที่โดน 3%/แต้ม (สูงสุด 30%)',     max:10},
-  int:  {id:'int',  name:'🔮 INT',  per:'เวท/ไฟ/พิษ +1/แต้ม',                   max:10},
-  spd:  {id:'spd',  name:'💨 SPD',  per:'จั่วเพิ่มเทิร์นแรก +1 ใบ ทุก 2 แต้ม',  max:10},
-  mana: {id:'mana', name:'💎 MANA', per:'มานาสูงสุด +1 ทุก 4 แต้ม (เพดาน +2)',  max:8},
-};
-const PVP_STAT_IDS = Object.keys(PVP_STATS);
-const STAT_POINTS_TOTAL = 10;
-
-/* ---------- Draft: card pool for packs (เน้นการ์ดใหม่ที่มีกลไก) ---------- */
-const PVP_PACK_POOL = [
-  // การ์ดใหม่ออกบ่อย (สร้าง build)
-  'jab','flurry','adrenaline','echo',
-  'thorns','bulwark','bash',
-  'poisondart','ignite',
-  'vampire','drain',
-  'allin','reckless',
-  // การ์ดพื้นบางส่วน (ยังเจอได้)
-  'heavy','ironwall','fireball','quickdraw',
-];
-
-/* ---------- Apply stat allocation to a battle ---------- */
-/* หมายเหตุ: HP ไม่ apply ที่นี่ — ตั้งที่ ME.maxHp ครั้งเดียวตอนจบ draft
-   (กัน HP สะสมทุก battle) ส่วน atk/int/def/spd/mana apply ต่อ battle ได้ปกติ */
-function applyLoadout(B, loadout){
-  if(!loadout)return;
-  const s=loadout.stats||{};
-  // ATK — โบนัสการ์ดโจมตีกาย
-  B.atkBonus=(B.atkBonus||0)+(s.atk||0);
-  // INT — โบนัสเวท/ไฟ/พิษ
-  B.intBonus=(B.intBonus||0)+(s.int||0);
-  // DEF — ลดดาเมจที่เข้าตัวเป็น % (3%/แต้ม เพดาน 30%) — สเกลกับดาเมจศัตรู ไม่ตันค่าตายตัว
-  B._defReduce=Math.min(0.30, (s.def||0)*0.03);
-  // SPD — จั่วเพิ่มเทิร์นแรก +1 ใบ ทุก 2 แต้ม
-  B._wealthDraw=(B._wealthDraw||0)+Math.floor((s.spd||0)/2);
-  // MANA — +1 ทุก 4 แต้ม เพดาน +2
-  B.maxMana=(B.maxMana||3)+Math.min(2,Math.floor((s.mana||0)/4));
-}
-// คำนวณ HP สูงสุดจากแต้ม (ใช้ตอนจบ draft) — ฐาน 100 + 6/แต้ม
-function maxHpFromStats(stats){ return 100 + (stats&&stats.hp?stats.hp*6:0); }
-
-/* ---------- Starter deck ---------- */
-function pvpStarterDeck(){
-  const d=[];
-  for(let i=0;i<4;i++)d.push('strike');
-  for(let i=0;i<3;i++)d.push('guard');
-  d.push('slash','heavy','potion','fireball','quickdraw');
-  return d;
-}
-
-/* ---------- Battle state factory ---------- */
-/* ---------- Dynamic Floor Modifiers (กฎพิเศษประจำชั้น — mirror ทุกคน) ---------- */
-const FLOOR_MODIFIERS = {
-  4:  {id:'firefloor', ic:'🔥', name:'พื้นที่ไฟลุก',  desc:'ผู้เล่นและศัตรูเริ่มเทิร์นด้วยไฟติด 2'},
-  9:  {id:'manadense', ic:'💎', name:'มานาหนาแน่น',  desc:'มานาสูงสุด +1 ทั้งด่าน — เล่นการ์ดได้รัวขึ้น'},
-  14: {id:'noheal',    ic:'🚫', name:'ห้ามรักษากาย',  desc:'งดผลฮีลและดูดเลือด 100% — ต้องใช้โล่รับ'},
-  17: {id:'doubledmg', ic:'⚡', name:'พลังทวีคูณ',    desc:'ดาเมจที่ดีลใส่ศัตรู ×1.5 (แต่ระวังศัตรูแรงด้วย)'},
-};
-function floorModifier(floor){ return FLOOR_MODIFIERS[floor] || null; }
-
-function createBattle(seed, floor, customDeck, sabotage){
-  // deterministic enemy pick from shared seed + floor (mirror!)
-  const rng = mulberryFrom((seed||1) * 131 + floor * 977);
-  // ชั้น 21 = บอสสุดท้าย, ชั้นอื่นสุ่มจาก seed
-  const isBoss = floor>=21;
-  const tmpl = isBoss ? PVP_BOSS : PVP_ENEMIES[Math.floor(rng() * PVP_ENEMIES.length)];
-  // scale enemy by floor (บอสไม่สเกลซ้ำ เพราะ HP ฐานสูงอยู่แล้ว)
-  let hpScale = isBoss ? 1 : (1 + floor * 0.10);
-  // SABOTAGE: น้ำยาคลุ้มคลั่ง — enemy HP +20%
-  if(sabotage && sabotage.enemyHpBoost) hpScale *= (1 + sabotage.enemyHpBoost);
-  const enemy = {
-    name: tmpl.name, spr: tmpl.spr,
-    hp: Math.round(tmpl.hp * hpScale), maxHp: Math.round(tmpl.hp * hpScale),
-    atk: tmpl.atk + Math.floor(floor/2), pat: tmpl.pat, patIdx: 0,
-    block: 0, burn: 0,
-    // gimmicks
-    armor: tmpl.armor||0,      // ลดดาเมจที่รับทุกครั้ง
-    regen: tmpl.regen||0,      // ฟื้นเลือดตอน 'heal'
-    thorns: tmpl.thorns||0,    // สะท้อนดาเมจเมื่อโดนตี
-    isBoss,
-  };
-  let baseDeck = (customDeck && customDeck.length) ? customDeck.slice() : pvpStarterDeck();
-  // SABOTAGE: โซ่ตรวน — เพิ่มการ์ดคำสาป Daze
-  if(sabotage && sabotage.curseCards){
-    for(let i=0;i<sabotage.curseCards;i++) baseDeck.push('daze');
-  }
-  const deck = shuffleSeeded(baseDeck, rng);
-  // SABOTAGE: เผาการ์ด — สุ่มลบการ์ดบนกองจั่ว 1 ใบ
-  if(sabotage && sabotage.cardBurn && deck.length>0){
-    deck.shift();   // ลบใบบนสุด (กองสับแล้ว = สุ่มอยู่แล้ว)
-  }
-  const mod = floorModifier(floor);
-  const B = {
-    floor, enemy,
-    maxMana: 3, mana: 3,
-    php: null, pmaxHp: null,
-    block: 0, burn: 0,
-    atkBonus: 0, startBlock: 0,
-    deck, hand: [], disc: [],
-    turn: 1, over: false, won: false,
-    // sabotage flags
-    _noBlock: !!(sabotage && sabotage.noBlock),   // เล่นการ์ดบล็อกไม่ได้
-    _weaken: !!(sabotage && sabotage.weaken),     // ตีเบาลง + โดนแรงขึ้น
-    _blind: !!(sabotage && sabotage.blind),       // มองไม่เห็นท่าศัตรู 2 เทิร์นแรก
-    // floor modifier
-    _mod: mod ? mod.id : null,
-    _rng: rng,
-  };
-  // มานาหนาแน่น (ชั้น 9): มานาสูงสุด +1
-  if(B._mod==='manadense'){ B.maxMana=4; B.mana=4; }
-  return B;
-}
-
-/* ---------- Seeded RNG helpers ---------- */
-function mulberryFrom(seedInt){
-  let s = seedInt | 0;
-  return function(){
-    s |= 0; s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function shuffleSeeded(arr, rng){
-  const a = arr.slice();
-  for(let i=a.length-1;i>0;i--){
-    const j = Math.floor(rng() * (i+1));
-    [a[i],a[j]] = [a[j],a[i]];
-  }
-  return a;
-}
-
-/* ---------- Core battle actions (mutate B) ---------- */
-function B_drawCard(B, n){
-  for(let i=0;i<n;i++){
-    if(B.deck.length===0){
-      if(B.disc.length===0) break;
-      B.deck = shuffleSeeded(B.disc, B._rng);
-      B.disc = [];
-    }
-    B.hand.push(B.deck.shift());
-  }
-}
-function B_startTurn(B){
-  B.mana = B.maxMana;
-  B.thorns = 0;   // หนามหมดอายุทุกเทิร์น
-  const sb = B._noBlock ? 0 : (B.startBlock||0);   // SABOTAGE: ห้ามบล็อก = ไม่มี startBlock
-  // bulwark: บล็อกค้างข้ามเทิร์น
-  if(B._keepBlock && !B._noBlock){ B.block = (B.block||0) + sb; B._keepBlock=false; }
-  else B.block = sb;
-  let n = 5;
-  if(B._wealthDraw && B.turn===1) n += B._wealthDraw;
-  B_drawCard(B, n);
-  // === Floor modifiers (เทิร์นแรก) ===
-  if(B.turn===1){
-    // 🔥 ไฟลุก — ผู้เล่นและศัตรูติดไฟ 2
-    if(B._mod==='firefloor'){
-      B._playerBurn=(B._playerBurn||0)+2;
-      B.enemy.burn=(B.enemy.burn||0)+2;
-    }
-  }
-}
-function B_playCard(B, handIdx){
-  const cid = B.hand[handIdx];
-  const card = PVP_CARDS[cid];
-  if(!card) return {ok:false};
-  // curse card: เล่นได้แต่ไม่มีผล (เปลืองที่/มานา)
-  if(card.curse){
-    B.hand.splice(handIdx, 1);
-    B.disc.push(cid);
-    return {ok:true, log:['💫 คำสาป! ไม่มีผล'], cid};
-  }
-  if(card.cost > B.mana) return {ok:false, reason:'mana'};
-  B.mana -= card.cost;
-  B.hand.splice(handIdx, 1);
-  B.disc.push(cid);
-
-  const log = [];
-  // echo: การ์ดโจมตีใบถัดไปดีล 2 เท่า
-  if(card.echo){ B._echo = true; log.push('🔊 Echo! ใบโจมตีถัดไป ×2'); }
-
-  // damage
-  if(card.dmg){
-    const hits = card.hits || 1;
-    let bonus = 0;
-    if(card.type==='attack') bonus = (B.atkBonus||0);   // ATK stat
-    else if(card.type==='magic') bonus = (B.intBonus||0); // INT stat
-    if(B._weaken) bonus -= 3;                            // SABOTAGE: อ่อนแอ ตีเบาลง -3
-    let mult = 1;
-    if(B._echo && (card.type==='attack'||card.type==='magic')){ mult = 2; B._echo = false; log.push('🔊 ×2!'); }
-    if(B._mod==='doubledmg') mult *= 1.5;               // ⚡ พลังทวีคูณ
-    let dealtTotal = 0;
-    for(let h=0; h<hits; h++) dealtTotal += B_dealToEnemy(B, Math.max(1,Math.round((card.dmg + bonus)*mult)), log);
-    // lifesteal: ฟื้นเท่าดาเมจที่ดีลจริง (ห้ามฮีล = ไม่ฟื้น)
-    if(card.lifesteal && B.php!=null && B._mod!=='noheal'){
-      B.php = Math.min(B.pmaxHp, B.php + dealtTotal);
-      log.push(`🩸 ฟื้น ${dealtTotal}`);
-    } else if(card.lifesteal && B._mod==='noheal'){
-      log.push('🚫 ห้ามรักษา! ดูดเลือดไม่ติด');
-    }
-  }
-  if(card.block){
-    if(B._noBlock){ log.push('🔓 โล่ถูกทำลาย! บล็อกไม่ติด'); }   // SABOTAGE: ห้ามบล็อก
-    else { B.block += card.block; log.push(`+${card.block} บล็อก`); }
-  }
-  if(card.thorns){ B.thorns = (B.thorns||0) + card.thorns; log.push(`🌵 หนาม ${card.thorns}`); }
-  if(card.keepBlock){ B._keepBlock = true; }
-  if(card.heal){
-    if(B._mod==='noheal'){ log.push('🚫 ห้ามรักษา! ฮีลไม่ติด'); }
-    else { B.php = Math.min(B.pmaxHp, B.php + card.heal); log.push(`ฟื้น ${card.heal}`); }
-  }
-  if(card.manaGain){ B.mana += card.manaGain; log.push(`มานา +${card.manaGain}`); }
-  if(card.draw){ B_drawCard(B, card.draw); log.push(`หยิบ ${card.draw}`); }
-  if(card.burn){ B.enemy.burn = (B.enemy.burn||0) + card.burn + (B.intBonus||0); log.push(`ไฟ ${card.burn+(B.intBonus||0)}`); }
-  if(card.poison){ B.enemy.poison = (B.enemy.poison||0) + card.poison + (B.intBonus||0); log.push(`☠️ พิษ ${card.poison+(B.intBonus||0)}`); }
-  if(card.selfDmg && B.php!=null){ B.php = Math.max(0, B.php - card.selfDmg); log.push(`💥 เสีย ${card.selfDmg} HP`); if(B.php<=0){B.over=true;B.won=false;} }
-  if(card.discardRandom && B.hand.length>0){
-    for(let i=0;i<card.discardRandom && B.hand.length>0;i++){
-      const idx=Math.floor(B._rng()*B.hand.length);
-      B.disc.push(B.hand.splice(idx,1)[0]);
-    }
-    log.push(`ทิ้งการ์ดสุ่ม`);
-  }
-
-  // enemy dead?
-  if(B.enemy.hp <= 0){ B.over = true; B.won = true; }
-  return {ok:true, log, cid};
-}
-function B_dealToEnemy(B, amt, log){
-  let dmg = amt;
-  // enemy armor ลดดาเมจ
-  if(B.enemy.armor) dmg = Math.max(1, dmg - B.enemy.armor);
-  if(B.enemy.block > 0){
-    const absorbed = Math.min(B.enemy.block, dmg);
-    B.enemy.block -= absorbed; dmg -= absorbed;
-  }
-  const before = B.enemy.hp;
-  B.enemy.hp = Math.max(0, B.enemy.hp - dmg);
-  // mimic/boss rage: ยิ่งโดนตียิ่งโกรธ (เพิ่ม atk)
-  if(B.enemy.pat.includes('rage')) B.enemy._dmgTaken = (B.enemy._dmgTaken||0) + (before - B.enemy.hp);
-  if(log) log.push(`ดีล ${amt}`);
-  return before - B.enemy.hp;   // คืนดาเมจจริงที่เข้า (สำหรับ lifesteal)
-}
-function B_endTurn(B){
-  // discard hand
-  B.disc = B.disc.concat(B.hand);
-  B.hand = [];
-  // 🔥 ไฟลุก — ผู้เล่นโดนไฟกัดตอนจบเทิร์น
-  if(B._playerBurn > 0 && B.php!=null){
-    B.php = Math.max(0, B.php - B._playerBurn);
-    B._playerBurn = Math.max(0, B._playerBurn - 1);
-    if(B.php <= 0){ B.over = true; B.won = false; return {enemyActions:[{type:'burn',dmg:1}]}; }
-  }
-  // enemy burn tick
-  if(B.enemy.burn > 0){
-    B.enemy.hp = Math.max(0, B.enemy.hp - B.enemy.burn);
-    B.enemy.burn = Math.max(0, B.enemy.burn - 1);
-    if(B.enemy.hp <= 0){ B.over = true; B.won = true; return {enemyActions:[]}; }
-  }
-  // enemy poison tick (พิษไม่ลดลง — ดีลคงที่จนหมดเอง? ที่นี่ลดทีละ 1)
-  if(B.enemy.poison > 0){
-    B.enemy.hp = Math.max(0, B.enemy.hp - B.enemy.poison);
-    B.enemy.poison = Math.max(0, B.enemy.poison - 1);
-    if(B.enemy.hp <= 0){ B.over = true; B.won = true; return {enemyActions:[]}; }
-  }
-  // enemy acts
-  const actions = B_enemyAct(B);
-  B.turn++;
-  if(!B.over) B_startTurn(B);
-  return {enemyActions: actions};
-}
-function B_enemyAct(B){
-  const e = B.enemy;
-  e.block = 0;
-  const move = e.pat[e.patIdx % e.pat.length];
-  e.patIdx++;
-  const actions = [];
-  if(move === 'atk' || move === 'rage'){
-    let dmg = e.atk;
-    // rage: ยิ่งโดนตีมา ยิ่งแรง
-    if(move === 'rage') dmg += Math.floor((e._dmgTaken||0) / 8);
-    if(B._weaken) dmg = Math.round(dmg * 1.5);   // SABOTAGE: อ่อนแอ โดนแรงขึ้น 50%
-    // DEF stat: ลดดาเมจเป็น % (สเกลกับดาเมจ ไม่ตัน)
-    if(B._defReduce>0) dmg = Math.max(1, Math.round(dmg * (1 - B._defReduce)));
-    if(B.block > 0){
-      const absorbed = Math.min(B.block, dmg);
-      B.block -= absorbed; dmg -= absorbed;
-    }
-    B.php = Math.max(0, B.php - dmg);
-    actions.push({type:'atk', dmg});
-    // player thorns: สะท้อนดาเมจกลับ
-    if(B.thorns > 0){
-      e.hp = Math.max(0, e.hp - B.thorns);
-      actions.push({type:'thorns', dmg:B.thorns});
-      if(e.hp<=0){ B.over=true; B.won=true; }
-    }
-    if(B.php <= 0){ B.over = true; B.won = false; }
-  } else if(move === 'def'){
-    e.block += 8;
-    actions.push({type:'def', block:8});
-  } else if(move === 'heal'){
-    const amt = e.regen || 4;
-    e.hp = Math.min(e.maxHp, e.hp + amt);
-    actions.push({type:'heal', amt});
-  }
-  return actions;
-}
-function B_enemyIntent(B){
-  const e = B.enemy;
-  const move = e.pat[e.patIdx % e.pat.length];
-  if(move === 'atk') return {icon:'⚔️', txt:`โจมตี ${e.atk}`};
-  if(move === 'rage'){ const bonus=Math.floor((e._dmgTaken||0)/8); return {icon:'😡', txt:`โกรธ! โจมตี ${e.atk+bonus}`}; }
-  if(move === 'def') return {icon:'🛡️', txt:`ตั้งรับ +8`};
-  if(move === 'heal') return {icon:'💚', txt:`ฟื้น ${e.regen||4}`};
-  return {icon:'❓', txt:'?'};
-}
-
-/* === keywords + relics (inlined) === */
-/* ============================================================
-   pvp-keywords-relics.js  — ส่วนเสริม (ไม่แตะของเดิม)
-   (inlined) เดิมเคยวางเป็นไฟล์แยก src=pvp-keywords-relics.js ต่อจาก
-   pvp-battle.js ใน index
-   ------------------------------------------------------------
-   เพิ่ม 2 ระบบ:
-   1) KEYWORDS — combo / exhaust / scry   (การ์ดใหม่ใช้ flag)
-   2) RELICS   — ของถาวรทั้งเกม (sync ผ่าน Firebase เหมือน stats)
-
-   ดีไซน์: ทุกอย่าง "เพิ่ม" ไม่ "แก้" — ฟังก์ชันเดิมยังทำงานเดิม
-   เราใช้วิธี wrap (ครอบ) ฟังก์ชันเดิมแทนการแก้ในไฟล์
-   ============================================================ */
-
-/* ===========================================================
-   PART 1 — การ์ด KEYWORD ใหม่
-   เพิ่มเข้า PVP_CARDS (object เดิม — แค่เติม key ใหม่ ไม่ทับของเก่า)
-   =========================================================== */
-Object.assign(PVP_CARDS, {
-  // --- COMBO: แรงขึ้นถ้าเป็นการ์ดใบที่ 3+ ในเทิร์นนี้ ---
-  comborush: {id:'comborush', name:'Combo Rush', cost:1, type:'attack', dmg:5, combo:7,
-    rarity:'uncommon', desc:'5 ดาเมจ — ถ้าเป็นการ์ดใบที่ 3+ ในเทิร์น: +7 ดาเมจ'},
-  finisher:  {id:'finisher',  name:'Finisher',   cost:2, type:'attack', dmg:8, combo:12,
-    rarity:'rare', desc:'8 ดาเมจ — ใบที่ 3+ ในเทิร์น: +12 ดาเมจ (ปิดจบคอมโบ)'},
-
-  // --- EXHAUST: ของแรง แลกหายทั้งเกมหลังเล่น ---
-  smite:     {id:'smite',     name:'Smite',      cost:1, type:'magic',  dmg:18, exhaust:true,
-    rarity:'rare', desc:'18 ดาเมจ — ใช้ได้ครั้งเดียว (หายจากเด็ค)'},
-  laststand: {id:'laststand', name:'Last Stand', cost:1, type:'defense', block:20, exhaust:true,
-    rarity:'rare', desc:'+20 บล็อก — ใช้ได้ครั้งเดียว (หายจากเด็ค)'},
-
-  // --- SCRY: ดูกองจั่ว แล้วทิ้งใบที่ไม่ต้องการ (กรองมือ) ---
-  foresight: {id:'foresight', name:'Foresight',  cost:0, type:'skill',  scry:2, draw:1,
-    rarity:'uncommon', desc:'ดูการ์ดบนกอง 2 ใบ ทิ้งได้ + จั่ว 1 (ฟรี)'},
-
-  // --- เวท CONTROL/BURST (เติมสายเวท) ---
-  frostnova: {id:'frostnova', name:'Frost Nova',  cost:1, type:'magic',  dmg:6, chill:true,
-    rarity:'uncommon', desc:'6 ดาเมจ + ❄️ ศัตรูตีเบาลง 40% เทิร์นหน้า'},
-  chainlight:{id:'chainlight',name:'Chain Lightning',cost:3,type:'magic', dmg:20,
-    rarity:'rare', desc:'20 ดาเมจ — เวทระเบิดพลังสูง (มานาแพง)'},
-  hex:       {id:'hex',       name:'Hex',         cost:1, type:'magic',  hexMark:true,
-    rarity:'uncommon', desc:'🩸 สาป: ไฟ/พิษบนศัตรูแรงขึ้น 50% จนจบศึก'},
-
-  // --- ป้องกัน → รุก (เติมสายป้องกัน) ---
-  riposte:   {id:'riposte',   name:'Riposte',     cost:1, type:'defense', block:6, riposte:8,
-    rarity:'uncommon', desc:'+6 บล็อก — ถ้าโดนตีเทิร์นหน้า สวนกลับ 8'},
-  fortify:   {id:'fortify',   name:'Fortify',     cost:2, type:'defense', block:5, fortify:4,
-    rarity:'rare', desc:'+5 บล็อก + ทุกเทิร์นถัดไปได้บล็อก 4 (ยืนระยะ)'},
-  aegisbash: {id:'aegisbash', name:'Aegis Bash',  cost:1, type:'attack',  blockToDmg:true,
-    rarity:'rare', desc:'ดาเมจ = บล็อกที่มีอยู่ตอนนี้ (แปลงโล่เป็นหมัด)'},
-});
-
-// เติมการ์ดใหม่เข้า pool ของ reward (ไม่ทับ pool เดิม)
-if(typeof PVP_PACK_POOL!=='undefined'){
-  PVP_PACK_POOL.push('comborush','finisher','smite','laststand','foresight',
-    'frostnova','chainlight','hex','riposte','fortify','aegisbash');
-}
-
-/* ===========================================================
-   PART 2 — RELICS (ของถาวรทั้งเกม)
-   เก็บใน MY_RELICS = ['relicId', ...]  (sync ผ่าน Firebase)
-   apply เข้า battle ผ่าน applyRelics(B) — เรียกหลัง applyLoadout
-   =========================================================== */
-const PVP_RELICS = {
-  // === กลุ่ม SOCIAL — ผูกกับระบบป่วน/พายุ/ผี (หัวใจของเกม) ===
-  mirror:    {id:'mirror',    ic:'🪞', name:'กระจกเงา',
-    desc:'โดนของป่วน → สะท้อนกลับครึ่งหนึ่งอัตโนมัติ', rarity:'rare', social:true},
-  boiling:   {id:'boiling',   ic:'⚡', name:'เลือดเดือด',
-    desc:'ทุกครั้งที่โดนป่วน → ศึกถัดไปได้มานา +2 เทิร์นแรก', rarity:'uncommon', social:true},
-  harvest:   {id:'harvest',   ic:'🌾', name:'เก็บเกี่ยว',
-    desc:'ชนะศึกใน ≤3 เทิร์น → +15 เครดิต (ทุนไว้ป่วน)', rarity:'uncommon', social:true},
-  soulbind:  {id:'soulbind',  ic:'👻', name:'พันธะวิญญาณ',
-    desc:'ตอนเป็นผี ได้ Soul Coins เร็วขึ้น 2 เท่า', rarity:'common', social:true},
-  scavenger: {id:'scavenger', ic:'💰', name:'มือฉกฉวย',
-    desc:'ฆ่าศัตรูได้ → +3 เครดิตทุกศึก', rarity:'common', social:true},
-  stormward: {id:'stormward', ic:'🛡️', name:'ใจเด็ด',
-    desc:'พายุ Void ทำดาเมจคุณครึ่งเดียว', rarity:'rare', social:true},
-  // === กลุ่ม COMBAT — เก็บไว้ให้สาย build (passive) ===
-  emberheart:{id:'emberheart', ic:'🔥', name:'หัวใจอัคนี',
-    desc:'เริ่มทุกศึกด้วยไฟใส่ศัตรู 4', rarity:'common'},
-  manastone: {id:'manastone',  ic:'💎', name:'ศิลามานา',
-    desc:'มานาสูงสุด +1 ทุกศึก', rarity:'uncommon'},
-  vampfang:  {id:'vampfang',   ic:'🦷', name:'เขี้ยวดูดเลือด',
-    desc:'การ์ดโจมตีกายทุกใบที่ตีโดน → ฟื้น 2 (คงที่)', rarity:'rare'},
-};
-const PVP_RELIC_IDS = Object.keys(PVP_RELICS);
-
-// สถานะ relic ของผู้เล่น (กำหนดใน index ตอน finishDraft ด้วย — กันกรณีโหลดไฟล์ลำดับ)
-if(typeof window!=='undefined' && typeof window.MY_RELICS==='undefined') window.MY_RELICS=[];
-// flag: โดนป่วนมาในศึกที่ผ่านมา (boiling relic ใช้)
-if(typeof window!=='undefined' && typeof window.RELIC_WAS_SABOTAGED==='undefined') window.RELIC_WAS_SABOTAGED=false;
-
-function hasRelic(rid){ return (typeof MY_RELICS!=='undefined') && MY_RELICS.includes(rid); }
-
-// apply relic เข้า battle object — เรียกใน startFight หลัง applyLoadout
-function applyRelics(B, relics){
-  if(!relics || !relics.length) return;
-  for(const rid of relics){
-    switch(rid){
-      case 'emberheart': B.enemy.burn = (B.enemy.burn||0) + 4; break;
-      case 'manastone':  B.maxMana = (B.maxMana||3) + 1; B.mana = B.maxMana; break;
-      case 'vampfang':   B._relicVampFang = true; break;
-      // boiling: ถ้าศึกก่อนโดนป่วน → มานา +2 เทิร์นแรก
-      case 'boiling':
-        if(typeof RELIC_WAS_SABOTAGED!=='undefined' && RELIC_WAS_SABOTAGED){
-          B._relicBoilMana = 2;
-        }
-        break;
-      // mirror / harvest / soulbind / scavenger / stormward จัดการนอก battle
-    }
-  }
-}
-
-/* ===========================================================
-   PART 3 — WRAP ฟังก์ชันเดิม (เพิ่มพฤติกรรม ไม่แก้ของเดิม)
-   =========================================================== */
-
-// --- 3.1 นับการ์ดที่เล่นต่อเทิร์น (สำหรับ combo) ---
-//      ครอบ B_startTurn เดิม: รีเซ็ตตัวนับทุกเทิร์น
-const _orig_B_startTurn = B_startTurn;
-B_startTurn = function(B){
-  _orig_B_startTurn(B);
-  B._cardsThisTurn = 0;   // รีเซ็ตตัวนับคอมโบ
-  // 🏰 FORTIFY: ได้บล็อกทุกเทิร์น (ยกเว้นโดน noblock sabotage)
-  if(B._fortify > 0 && !B._noBlock && B.turn>1){
-    B.block = (B.block||0) + B._fortify;
-  }
-  // boiling relic: โดนป่วนมา → มานา +2 เฉพาะเทิร์นแรก
-  if(B.turn===1 && B._relicBoilMana){
-    B.maxMana = (B.maxMana||3) + B._relicBoilMana;
-    B.mana = B.maxMana;
-    B._relicBoilMana = 0;
-  }
-};
-
-// --- 3.2 ครอบ B_playCard: combo / exhaust / scry / vampfang relic ---
-const _orig_B_playCard = B_playCard;
-B_playCard = function(B, handIdx){
-  const cid = B.hand[handIdx];
-  const card = PVP_CARDS[cid];
-
-  // ----- COMBO: เพิ่ม dmg ชั่วคราวก่อนเรียกของเดิม -----
-  // ของเดิมอ่าน card.dmg โดยตรง เราจึง bump ค่าใน object ชั่วคราวแล้วคืนค่า
-  let comboApplied = false, savedDmg = null;
-  if(card && card.combo && !card.curse){
-    const n = (B._cardsThisTurn||0);   // ใบนี้คือใบที่ (n+1)
-    if(n >= 2){                         // ใบที่ 3 เป็นต้นไป
-      savedDmg = card.dmg;
-      card.dmg = (card.dmg||0) + card.combo;
-      comboApplied = true;
-    }
-  }
-
-  // ----- VAMPFANG relic: ดูดเลือดค่าคงที่ต่อใบ (จัดการหลัง original รัน) -----
-  // จำ HP ศัตรูก่อน เพื่อเช็คว่า "ตีโดนจริง" ค่อยฟื้น (กันฟื้นฟรีตอนโดนบล็อก/พลาด)
-  const _vampOn = (B._relicVampFang && card && card.type==='attack' && !card.lifesteal && card.dmg);
-  const _ehpBeforeVamp = (_vampOn && B.enemy) ? B.enemy.hp : null;
-
-  // ----- AEGIS BASH: ดาเมจ = บล็อกที่มีตอนนี้ (set dmg ชั่วคราว) -----
-  let bashApplied = false, savedBashDmg = null;
-  if(card && card.blockToDmg){
-    savedBashDmg = card.dmg;            // ปกติ undefined
-    card.dmg = Math.max(1, B.block||0); // โล่ = หมัด (อย่างน้อย 1)
-    bashApplied = true;
-  }
-
-  // จำค่าไฟ/พิษก่อนเล่น (สำหรับ HEX boost ของที่เพิ่งใส่)
-  const _burnBefore = B.enemy ? (B.enemy.burn||0) : 0;
-  const _poisonBefore = B.enemy ? (B.enemy.poison||0) : 0;
-
-  // เรียกของเดิม (logic damage/heal/block ทั้งหมดทำที่นี่)
-  const res = _orig_B_playCard(B, handIdx);
-
-  // คืนค่า object การ์ดให้กลับเป็นเดิมเสมอ (กัน mutate ถาวร!)
-  if(comboApplied){ card.dmg = savedDmg; if(res && res.log) res.log.push(`🥊 คอมโบ! +${card.combo}`); }
-  // VAMPFANG: ฟื้นคงที่ 2 ต่อใบโจมตี เฉพาะตอนตีโดนจริง (ไม่สเกลตามดาเมจ)
-  if(_vampOn && res && res.ok && _ehpBeforeVamp!=null && B.enemy.hp < _ehpBeforeVamp && B.php!=null && B._mod!=='noheal'){
-    const VAMP_FLAT = 2;
-    B.php = Math.min(B.pmaxHp, B.php + VAMP_FLAT);
-    if(res.log) res.log.push(`🦷 ดูดเลือด ${VAMP_FLAT}`);
-  }
-  if(bashApplied){
-    if(res && res.ok && res.log) res.log.push(`🛡️→⚔️ แปลงโล่เป็นดาเมจ ${card.dmg}`);
-    // ใช้โล่เป็นหมัด → โล่หมดไป (กันแรงเกิน: ได้ทั้งตีทั้งกันไม่ได้)
-    if(res && res.ok) B.block = 0;
-    card.dmg = savedBashDmg;
-  }
-
-  // นับการ์ดที่เล่นสำเร็จ (ไม่นับการ์ดที่เล่นไม่ผ่าน เช่น มานาไม่พอ)
-  if(res && res.ok){
-    B._cardsThisTurn = (B._cardsThisTurn||0) + 1;
-
-    // ----- HEX active: ไฟ/พิษที่ "การ์ดใบนี้เพิ่ง" ใส่ → คูณ 1.5 -----
-    if(B._hexMark && !card.hexMark && B.enemy){
-      const addedBurn = (B.enemy.burn||0) - _burnBefore;
-      const addedPoison = (B.enemy.poison||0) - _poisonBefore;
-      if(addedBurn>0){ B.enemy.burn = _burnBefore + Math.ceil(addedBurn*1.5); }
-      if(addedPoison>0){ B.enemy.poison = _poisonBefore + Math.ceil(addedPoison*1.5); }
-    }
-
-    // ----- EXHAUST: ของเดิมโยนเข้า disc → เราดึงออกให้หายทั้งเกม -----
-    if(card && card.exhaust && res.cid){
-      const di = B.disc.lastIndexOf(res.cid);
-      if(di >= 0){ B.disc.splice(di,1); B._exhausted=(B._exhausted||0)+1; if(res.log) res.log.push('♻️ การ์ดสลายแล้ว'); }
-    }
-
-    // ----- SCRY: ดูกองบนสุด N ใบ ทิ้งใบที่ dmg ต่ำ/curse อัตโนมัติ -----
-    // (เวอร์ชันอัตโนมัติ ไม่ต้องมี UI — ทิ้ง curse และการ์ดมานาเกินที่จ่ายไหว)
-    if(card && card.scry){
-      let tossed = 0;
-      for(let k=0; k<card.scry && B.deck.length>0; k++){
-        const top = B.deck[0];
-        const tc = PVP_CARDS[top];
-        // ทิ้งถ้าเป็นคำสาป หรือการ์ดแพงเกินมานาสูงสุด (เล่นไม่ออกอยู่ดี)
-        if(tc && (tc.curse || tc.cost > B.maxMana)){
-          B.disc.push(B.deck.shift()); tossed++;
-        }
-      }
-      if(tossed && res.log) res.log.push(`🔮 มองอนาคต — ทิ้ง ${tossed} ใบ`);
-    }
-
-    // ----- FROST NOVA: ศัตรูตีเบาลง 40% เทิร์นหน้า -----
-    if(card && card.chill){
-      B._chillNext = true;
-      if(res.log) res.log.push('❄️ ศัตรูจะตีเบาลงเทิร์นหน้า');
-    }
-
-    // ----- HEX: ไฟ/พิษบนศัตรูแรงขึ้น 50% จนจบศึก -----
-    if(card && card.hexMark){
-      B._hexMark = true;
-      // boost ที่ติดอยู่แล้วทันที (ปัดขึ้น)
-      if(B.enemy.burn>0) B.enemy.burn = Math.ceil(B.enemy.burn*1.5);
-      if(B.enemy.poison>0) B.enemy.poison = Math.ceil(B.enemy.poison*1.5);
-      if(res.log) res.log.push('🩸 สาปแล้ว! ไฟ/พิษแรงขึ้น 50%');
-    }
-
-    // ----- RIPOSTE: ตั้งสวนกลับเทิร์นหน้า -----
-    if(card && card.riposte){
-      B._riposte = (B._riposte||0) + card.riposte;
-      if(res.log) res.log.push(`⚔️ ตั้งสวนกลับ ${card.riposte}`);
-    }
-
-    // ----- FORTIFY: ได้บล็อกทุกเทิร์นถัดไป (ยืนระยะ) -----
-    if(card && card.fortify){
-      B._fortify = (B._fortify||0) + card.fortify;
-      if(res.log) res.log.push(`🏰 ป้อมปราการ +${card.fortify}/เทิร์น`);
-    }
-  }
-  return res;
-};
-
-// --- 3.3 ครอบ B_enemyAct: ❄️ chill (ตีเบาลง) + ⚔️ riposte (สวนกลับ) ---
-const _orig_B_enemyAct = B_enemyAct;
-B_enemyAct = function(B){
-  const e = B.enemy;
-  // ❄️ CHILL: ลด atk ศัตรูชั่วคราว 40% เฉพาะเทิร์นนี้
-  let chillApplied = false, savedAtk = null;
-  if(B._chillNext){
-    savedAtk = e.atk;
-    e.atk = Math.max(1, Math.round(e.atk * 0.6));
-    chillApplied = true;
-    B._chillNext = false;   // ใช้ครั้งเดียว
-  }
-  // จำ HP ผู้เล่นก่อน เพื่อรู้ว่า "โดนตี" จริงไหม (สำหรับ riposte)
-  const phpBefore = B.php;
-  const actions = _orig_B_enemyAct(B);
-  if(chillApplied){
-    e.atk = savedAtk;   // คืน atk เดิม
-    actions.unshift({type:'chill'});
-  }
-  // ⚔️ RIPOSTE: ถ้าศัตรูโจมตีโดนเรา (php ลด) → สวนกลับ
-  if(B._riposte > 0 && B.php < phpBefore && !B.over){
-    e.hp = Math.max(0, e.hp - B._riposte);
-    actions.push({type:'riposte', dmg:B._riposte});
-    if(e.hp<=0){ B.over=true; B.won=true; }
-    B._riposte = 0;   // ใช้แล้วหมด (เหมือน thorns)
-  } else if(B._riposte > 0 && B.php >= phpBefore){
-    B._riposte = 0;   // ไม่โดนตี (เช่นบล็อกหมด) → riposte หมดอายุ
-  }
-  return actions;
-};
-
-// --- 3.4 ครอบ B_enemyIntent: โชว์ว่าศัตรูโดน chill ---
-const _orig_B_enemyIntent = B_enemyIntent;
-B_enemyIntent = function(B){
-  const intent = _orig_B_enemyIntent(B);
-  if(B._chillNext && intent && intent.txt){
-    return {icon:'❄️', txt:intent.txt+' (เยือกแข็ง)'};
-  }
-  return intent;
-};
-
-// เรียกใน startFight หลัง applyLoadout(B, MY_LOADOUT)
-function applyMyRelicsToBattle(B){
-  applyRelics(B, (typeof MY_RELICS!=='undefined') ? MY_RELICS : []);
-}
-
-// เรียกตอนชนะศึก (endFight ฝั่งชนะ) — คืน {credit, log} ให้ index จัดการต่อ
-// B = battle object ที่เพิ่งจบ (CUR_B) — ใช้ดูจำนวนเทิร์น
-function relicsOnWin(B){
-  let credit = 0; const log = [];
-  // scavenger: ฆ่าศัตรูได้ +3 เครดิตทุกศึก
-  if(hasRelic('scavenger')){ credit += 3; }
-  // harvest: ชนะใน ≤3 เทิร์น +15 เครดิต
-  if(hasRelic('harvest') && B && B.turn<=3){ credit += 15; log.push('🌾 เก็บเกี่ยว! +15 เครดิต'); }
-  return { credit, log };
-}
-
-// เรียกตอนพายุ Void จะหัก HP — คืนค่าดาเมจที่ควรหัก (stormward = ครึ่งเดียว)
-function relicStormDamage(base){
-  const relics = (typeof MY_RELICS!=='undefined') ? MY_RELICS : [];
-  if(relics.includes('stormward')) return Math.max(1, Math.round(base/2));
-  return base;
-}
-
-// สุ่ม relic ใหม่ที่ยังไม่มี (สำหรับหน้ารางวัล relic)
-function rollRelicChoices(n, seed){
-  const owned = new Set((typeof MY_RELICS!=='undefined') ? MY_RELICS : []);
-  const pool = PVP_RELIC_IDS.filter(id => !owned.has(id));
-  if(pool.length===0) return [];
-  const rng = mulberryFrom((seed||1)*7919 + (ME.floor||0)*set_safe());
-  function set_safe(){ return (ME.id?ME.id.length*131:311); }
-  const picks = [];
-  const tmp = pool.slice();
-  for(let i=0; i<n && tmp.length>0; i++){
-    const idx = Math.floor(rng()*tmp.length);
-    picks.push(tmp.splice(idx,1)[0]);
-  }
-  return picks;
-}
-
-// เพิ่ม relic เข้าตัว + sync Firebase
-function grantRelic(rid){
-  if(typeof MY_RELICS==='undefined') window.MY_RELICS=[];
-  if(MY_RELICS.includes(rid)) return;
-  MY_RELICS.push(rid);
-  if(typeof ROOM!=='undefined' && ROOM.ref && !ROOM._finished){
-    ROOM.ref.child('players/'+ME.id).update({ relics: MY_RELICS });
-  }
-  if(typeof toast==='function'){
-    const r = PVP_RELICS[rid];
-    toast(`${r.ic} ได้เครื่องราง: ${r.name}!`);
-  }
-}
-
-</script>
+<script src="pvp-battle.js"></script>
 <script>
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBWS7GaxzqX69Y2g9RbF-jJN3s9JsKpZKY",
@@ -1042,14 +314,6 @@ catch(e){ console.warn('Firebase init failed',e); }
   .draft-deck .dchip{font-size:.62em;background:#1a1240;border:1px solid var(--line);border-radius:6px;padding:2px 6px;color:#b0a0d0}
   .draft-wait{text-align:center;color:var(--ok);font-size:.84em;margin-top:8px;font-weight:700}
 
-  /* ===== Relic reward (3 เลือก 1) ===== */
-  .relic-opt{width:130px;min-height:120px;justify-content:flex-start}
-  .relic-opt .relic-ic{font-size:2em;line-height:1.1;margin-bottom:2px}
-  .relic-opt .o-name{font-size:.74em}
-  .relic-opt .o-desc{font-size:.64em;margin-top:2px}
-  .relic-social{display:inline-block;font-size:.85em;background:#3a1a5a;color:#c89cff;border-radius:8px;padding:0 5px;margin-left:2px}
-  .relic-combat{display:inline-block;font-size:.85em;background:#15304a;color:#7ab8ff;border-radius:8px;padding:0 5px;margin-left:2px}
-
   /* ===== Stat allocation ===== */
   .btn-info{background:none;border:1px solid var(--purple);color:var(--purple-br);border-radius:8px;padding:5px 12px;font-size:.78em;cursor:pointer;font-family:inherit}
   .btn-info:active{background:rgba(122,60,240,.2)}
@@ -1238,17 +502,6 @@ catch(e){ console.warn('Firebase init failed',e); }
     <button class="btn btn-dim" id="reward-skip" style="margin-top:14px">ข้าม (ไม่เอาการ์ด)</button>
   </div>
 
-  <!-- ===== SCREEN: RELIC REWARD (3 เลือก 1) ===== -->
-  <div class="scr" id="scr-relic">
-    <div class="draft-head">
-      <div class="draft-title">💠 เครื่องราง — ชั้น <span id="relic-floor">5</span>!</div>
-    </div>
-    <div class="draft-step">เลือกเครื่องราง <b>1 ชิ้น</b> (ถาวรทั้งเกม)</div>
-    <div class="draft-hint">🟣 ป่วน = ผูกกับการแกล้ง/พายุ/ผี · 🔵 บิลด์ = เสริมการต่อสู้</div>
-    <div class="draft-grid" id="relic-cards"></div>
-    <button class="btn btn-dim" id="relic-skip" style="margin-top:14px">ข้าม (ไม่เอาเครื่องราง)</button>
-  </div>
-
   <!-- ===== SCREEN: REST STOP (ชั้น 11 จุดพักแรม) ===== -->
   <div class="scr" id="scr-rest">
     <div class="draft-head">
@@ -1313,7 +566,6 @@ catch(e){ console.warn('Firebase init failed',e); }
     <!-- my big status -->
     <div class="my-status">
       <div class="my-floor">🗼 ชั้นของคุณ: <b id="my-floor-big">0</b> <span style="margin-left:12px">💳 เครดิต: <b id="my-gold" style="color:var(--gold)">0</b></span></div>
-      <div id="my-relics" style="font-size:1.1em;margin-top:2px;min-height:1.2em"></div>
       <div class="hpwrap me" style="margin-top:6px">
         <div class="hl"><span id="me-name">คุณ</span><span id="me-hp-txt">100/100</span></div>
         <div class="hptrack"><div class="hpfill" id="me-hp-fill" style="width:100%"></div></div>
@@ -1528,7 +780,6 @@ function joinRoom(){
            maxHp:existing.maxHp||100, ready:true, gold:existing.gold||0 };
       // กู้ build (stats) จาก RTDB ถ้ามี
       if(existing.stats) MY_LOADOUT.stats=existing.stats;
-      if(existing.relics) MY_RELICS=existing.relics;   // กู้เครื่องรางตอน reconnect
       DRAFT._done=true; DRAFT._gameId=data.startTime; REVEAL_SHOWN=true;
       ref.child('players/'+ME.id).update({ name:ME.name, disconnected:null, lastHeartbeat:firebase.database.ServerValue.TIMESTAMP })
         .then(()=>{ enterLobby(); toast('🔄 กลับเข้าเกมแล้ว!'); });
@@ -1651,25 +902,24 @@ function attachRoomListener(){
       const inReward=$('scr-reward').classList.contains('active');
       const inReveal=$('scr-reveal').classList.contains('active');
       const inRest=$('scr-rest').classList.contains('active');
-      const inRelic=$('scr-relic').classList.contains('active');
       // ครั้งแรกที่เข้า playing → โชว์ reveal "รู้เขารู้เรา" ก่อน (ครั้งเดียวต่อเกม)
-      if(!REVEAL_SHOWN && !inBattle && !inEnd && !inReward && !inRest && !inRelic){
+      if(!REVEAL_SHOWN && !inBattle && !inEnd && !inReward && !inRest){
         REVEAL_SHOWN=true;
         stopDraftTimer();
         showReveal(players);
         return;
       }
       // draft จบแล้วเมื่อ playing — ออกจากจอ draft ไป race ได้
-      // อย่าลากกลับจอ race ถ้ากำลังสู้/เลือกการ์ด/จบเกม/ดู reveal/พักแรม/เลือกเครื่องราง
-      if(!inBattle && !inEnd && !inReward && !inReveal && !inRest && !inRelic){
+      // อย่าลากกลับจอ race ถ้ากำลังสู้/เลือกการ์ด/จบเกม/ดู reveal/พักแรม
+      if(!inBattle && !inEnd && !inReward && !inReveal && !inRest){
         if(!$('scr-race').classList.contains('active')){ stopDraftTimer(); enterRace(); }
         renderRace();
-      } else if(!inReveal && !inRest && !inRelic){
+      } else if(!inReveal && !inRest){
         updateNextFloorUI();
       }
       checkWinConditions(data, players);
     } else {
-      if(!$('scr-battle').classList.contains('active') && !$('scr-reward').classList.contains('active') && !$('scr-draft').classList.contains('active') && !$('scr-reveal').classList.contains('active') && !$('scr-rest').classList.contains('active') && !$('scr-relic').classList.contains('active')) renderRace();
+      if(!$('scr-battle').classList.contains('active') && !$('scr-reward').classList.contains('active') && !$('scr-draft').classList.contains('active') && !$('scr-reveal').classList.contains('active') && !$('scr-rest').classList.contains('active')) renderRace();
     }
     // (host เริ่มเกมด้วยปุ่ม hostStartGame — ไม่ auto แล้ว)
   });
@@ -1692,38 +942,22 @@ function checkWinConditions(data, players){
     declareEnd(alive[0], 'last_standing');
     return;
   }
-  // 3) ตายหมด — คนที่ไปได้ "ไกลสุด" ชนะ (ชั้นสูงสุด)
-  //    ใช้ตัวตัดสินที่ deterministic ทุกเครื่องคำนวณได้ค่าเดียวกัน เลี่ยง race:
-  //    ลำดับ: ชั้นสูงสุด → เครดิตเยอะสุด → id น้อยสุด (คงที่)
+  // ถ้าตายหมดพร้อมกัน (edge) — คนชั้นสูงสุดชนะ
   if(alive.length===0){
-    const winner = pickFurthest(players, ids);
-    declareEnd(winner, 'highest_floor');
+    let best=ids[0];
+    ids.forEach(id=>{ if((players[id].floor||0)>(players[best].floor||0)) best=id; });
+    declareEnd(best, 'last_standing');
   }
-}
-
-// เลือกผู้เล่นที่ไปได้ไกลสุด แบบ deterministic (ทุกเครื่องได้ผลเดียวกัน)
-function pickFurthest(players, ids){
-  return ids.slice().sort((a,b)=>{
-    const fa=players[a].floor||0, fb=players[b].floor||0;
-    if(fb!==fa) return fb-fa;                       // ชั้นสูงกว่าชนะ
-    const ga=players[a].gold||0, gb=players[b].gold||0;
-    if(gb!==ga) return gb-ga;                       // เครดิตมากกว่าชนะ (เล่นเก่งกว่า)
-    return a<b?-1:1;                                // สุดท้าย: id คงที่ (กันค่าไม่ตรงกัน)
-  })[0];
 }
 
 function declareEnd(winnerId, reason){
   if(!ROOM.ref) return;
-  // กัน race: ใช้ transaction เขียน winner — คนแรกที่สำเร็จเท่านั้นที่กำหนดผล
-  ROOM.ref.transaction(room=>{
-    if(!room) return room;
-    if(room.status==='finished' || room._ending) return;   // มีผลแล้ว — ยกเลิกการเขียน
-    room._ending = true;
-    room.status = 'finished';
-    room.winner = winnerId;
-    room.reason = reason;
-    room.endedAt = firebase.database.ServerValue.TIMESTAMP;
-    return room;
+  ROOM.ref.update({ _ending:true });
+  ROOM.ref.update({
+    status:'finished',
+    winner:winnerId,
+    reason:reason,
+    endedAt:firebase.database.ServerValue.TIMESTAMP
   });
 }
 
@@ -1740,7 +974,6 @@ function showEndScreen(winnerId, reason){
   const reasonTxt={
     last_standing: iWon?'คุณคือผู้รอดคนสุดท้าย!':`${winnerName} รอดเป็นคนสุดท้าย`,
     race_first: iWon?'คุณถึงยอดหอคอยก่อน!':`${winnerName} ถึงยอดหอคอยก่อน!`,
-    highest_floor: iWon?`คุณไปได้ไกลที่สุด — ชั้น ${ME.floor}!`:`${winnerName} ไปได้ไกลที่สุด (ทุกคนตกหอคอย)`,
   }[reason]||'';
   $('end-result').textContent=iWon?'VICTORY':'DEFEATED';
   $('end-result').className='end-result '+(iWon?'win':'lose');
@@ -1918,12 +1151,6 @@ function renderRace(){
   // my big status
   $('my-floor-big').textContent=ME.floor;
   $('my-gold').textContent=ME.gold||0;
-  const relEl=$('my-relics');
-  if(relEl){
-    relEl.innerHTML = (typeof MY_RELICS!=='undefined'&&MY_RELICS.length)
-      ? MY_RELICS.map(id=>{const r=PVP_RELICS[id];return r?`<span title="${r.name}: ${r.desc}">${r.ic}</span>`:'';}).join(' ')
-      : '';
-  }
   $('me-name').textContent=ME.name;
   $('me-hp-txt').textContent=`${ME.hp}/${ME.maxHp}`;
   setHp('me',ME.hp,ME.maxHp);
@@ -1971,7 +1198,7 @@ function startGhostMode(){
   // Soul Coins +5 ทุก 10 วิ
   _ghostTimer=setInterval(()=>{
     if(ME.hp>0 || ROOM._finished){ stopGhostMode(); return; }
-    SOUL_COINS += hasRelic('soulbind') ? 10 : 5;   // 👻 พันธะวิญญาณ: เร็วขึ้น 2 เท่า
+    SOUL_COINS+=5;
     updateSoulUI();
   }, 10000);
 }
@@ -2033,7 +1260,7 @@ function startVoidStorm(){
     if(!_stormActive || ROOM._finished){ stopVoidStorm(); return; }
     if(ME.hp<=0){ stopVoidStorm(); return; }   // ตายแล้ว ไม่โดนพายุ (ส่องดูได้)
     if(!isBehindByStorm()){ stopVoidStorm(); return; }
-    ME.hp=Math.max(0,ME.hp-relicStormDamage(2));
+    ME.hp=Math.max(0,ME.hp-2);
     pushMyState();
   },5000);
 }
@@ -2162,8 +1389,6 @@ function finishDraft(){
   const startDeck=DRAFT.startCard?[DRAFT.startCard]:[];
   MY_LOADOUT={ stats:Object.assign({},DRAFT.stats), deck:startDeck };
   MY_INVENTORY={};   // เริ่มเกม กระเป๋าว่าง
-  MY_RELICS=[];      // เริ่มเกม ยังไม่มีเครื่องราง
-  RELIC_WAS_SABOTAGED=false; PENDING_RELIC_PICK=false;   // เคลียร์ธง relic
   AEGIS_FLOORS=0;
   SOUL_COINS=0; stopGhostMode();   // รีเซ็ตผี
   PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false, blind:false, cardBurn:false };
@@ -2176,7 +1401,7 @@ function finishDraft(){
   if(ROOM.ref){
     ROOM.ref.child('players/'+ME.id).update({
       hp:ME.hp, maxHp:ME.maxHp, draftDone:true,
-      stats:MY_LOADOUT.stats, relics:MY_RELICS,
+      stats:MY_LOADOUT.stats,
       lastHeartbeat:firebase.database.ServerValue.TIMESTAMP
     });
   }
@@ -2228,7 +1453,6 @@ function renderDarkMarketItems(){
 }
 // กระเป๋าของแกล้ง (ซื้อเก็บไว้ ใช้ทีหลัง)
 let MY_INVENTORY={};   // {itemId: count}
-let MY_RELICS=[];      // ['relicId', ...] — เครื่องรางถาวร
 function buySabotage(item){
   if((ME.gold||0)<item.cost){ $('dm-msg').textContent='เครดิตไม่พอ'; return; }
   // หัก credit เรา → เก็บของเข้ากระเป๋า (ยังไม่ใช้)
@@ -2379,28 +1603,21 @@ function listenMySabotage(){
   ROOM.ref.child('sabotageQueue/'+ME.id).on('child_added', snap=>{
     const s=snap.val();
     if(!s)return;
-    applySabotageToPending(s.type, s.from, s.fromId, s.amount);
+    applySabotageToPending(s.type, s.from, s.fromId, s.amount, s.reflected);
     // ลบออกจากคิวหลังรับ
     snap.ref.remove();
   });
 }
-function applySabotageToPending(type, from, fromId, amount){
-  // loot/reflect/ghost ไม่นับเป็นการแกล้งปกติ (ผ่านได้เสมอ)
-  const isHostile = (type!=='loot' && type!=='reflected' && type.indexOf('ghost_')!==0);
+function applySabotageToPending(type, from, fromId, amount, reflected){
+  // loot/ghost ไม่นับเป็นการแกล้งปกติ (ผ่านได้เสมอ)
+  const isHostile = (type!=='loot' && type.indexOf('ghost_')!==0);
   // 🛡️ Aegis Ward — สะท้อนของแกล้งกลับไปหาคนส่ง
-  if(isHostile && AEGIS_FLOORS>0 && fromId && fromId!==ME.id){
+  // กันลูปไม่รู้จบ: ของที่ "ถูกสะท้อนมาแล้ว" (reflected) จะไม่สะท้อนกลับซ้ำ
+  if(isHostile && !reflected && AEGIS_FLOORS>0 && fromId && fromId!==ME.id){
     toast(`🛡️ โล่สะท้อน "${sabName(type)}" กลับไปหา ${from}!`);
     ROOM.ref.child('sabotageQueue/'+fromId).push({ type, from:ME.name, fromId:ME.id, reflected:true, at:firebase.database.ServerValue.TIMESTAMP });
     return;   // เราไม่โดน
   }
-  // 🪞 กระจกเงา relic — โดนป่วน → สะท้อนของชิ้นเดียวกันกลับไปหาคนส่งด้วย (เจ็บทั้งคู่)
-  //   ต่างจาก Aegis: เรายังโดนอยู่ แต่คนส่งโดนตามไปด้วย = "แตะแล้วเจ็บ"
-  if(isHostile && hasRelic('mirror') && fromId && fromId!==ME.id){
-    ROOM.ref.child('sabotageQueue/'+fromId).push({ type, from:ME.name+' 🪞', fromId:ME.id, reflected:true, at:firebase.database.ServerValue.TIMESTAMP });
-    toast(`🪞 กระจกเงาสะท้อน "${sabName(type)}" กลับไปด้วย!`);
-  }
-  // ⚡ เลือดเดือด relic — จำว่าโดนป่วน → ศึกหน้ามานา +2
-  if(isHostile && hasRelic('boiling')){ RELIC_WAS_SABOTAGED = true; }
   if(type==='curse'){ PENDING_SABOTAGE.curseCards++; toast(`⛓️ ${from} ส่งคำสาปมา!`); }
   else if(type==='frenzy'){ PENDING_SABOTAGE.enemyHpBoost=0.20; toast(`🧪 ${from} เสกศัตรูให้แกร่งขึ้น!`); }
   else if(type==='noblock'){ PENDING_SABOTAGE.noBlock=true; toast(`🔓 ${from} ทำลายโล่คุณ!`); }
@@ -2535,8 +1752,6 @@ function startFight(){
   const B=createBattle(ROOM.seed, nf, fullDeck, sab);
   B.php=ME.hp; B.pmaxHp=ME.maxHp;
   applyLoadout(B, MY_LOADOUT);   // stats (atk/hp/def/int/spd/mana)
-  applyMyRelicsToBattle(B);       // เครื่องราง (relic)
-  if(typeof RELIC_WAS_SABOTAGED!=='undefined') RELIC_WAS_SABOTAGED=false;   // ใช้แล้วเคลียร์ (boiling ใช้ครั้งเดียว)
   B_startTurn(B);
   CUR_B=B;
   showScr('scr-battle');
@@ -2572,11 +1787,7 @@ function renderBattleUI(){
   if(B.enemy.burn>0)est.push(`🔥${B.enemy.burn}`);
   if(B.enemy.poison>0)est.push(`☠️${B.enemy.poison}`);
   if(B.enemy.armor>0)est.push(`🪖${B.enemy.armor}`);
-  if(B._hexMark)est.push(`🩸สาป`);
   if(B.thorns>0)est.push(`🌵คุณ ${B.thorns}`);
-  if(B._riposte>0)est.push(`🤺สวน ${B._riposte}`);
-  if(B._fortify>0)est.push(`🏯ป้อม ${B._fortify}`);
-  if(B._chillNext)est.push(`❄️แช่แข็ง`);
   $('bt-estatus').textContent=est.join('  ');
   // player stats
   $('bt-php').textContent=B.php;
@@ -2589,9 +1800,7 @@ function renderBattleUI(){
   const ARTBY={strike:'🗡️',heavy:'🔨',slash:'⚔️',jab:'👊',flurry:'🌪️',bash:'🛡️',allin:'💥',reckless:'😡',vampire:'🩸',
     guard:'🛡️',ironwall:'🧱',thorns:'🌵',bulwark:'🏰',
     fireball:'🔥',poisondart:'🎯',ignite:'🔥',drain:'🧛',
-    potion:'🧪',quickdraw:'🎴',adrenaline:'⚡',echo:'🔊',daze:'💫',
-    comborush:'🥊',finisher:'👊',smite:'⚡',laststand:'🛡️',foresight:'🔮',
-    frostnova:'❄️',chainlight:'⚡',hex:'🩸',riposte:'🤺',fortify:'🏯',aegisbash:'💢'};
+    potion:'🧪',quickdraw:'🎴',adrenaline:'⚡',echo:'🔊',daze:'💫'};
   B.hand.forEach((cid,i)=>{
     const card=PVP_CARDS[cid];
     const baseId=cid.replace('★','');
@@ -2646,15 +1855,13 @@ function endFight(){
   ME.hp=Math.max(0,B.php);
   if(B.won){
     ME.floor++;
-    const _rel=relicsOnWin(B);   // harvest/scavenger → เครดิตพิเศษ
     // === Gold (แบบ B: คนตามหลังได้มากกว่า) ===
     const base=12;
     const behind=Math.max(0, leaderFloor()-ME.floor);  // ตามหลังคนนำกี่ชั้น
     const catchupBonus=behind*4;                          // ยิ่งตามหลังยิ่งได้เยอะ
-    const gain=base+catchupBonus+(_rel.credit||0);
+    const gain=base+catchupBonus;
     ME.gold=(ME.gold||0)+gain;
-    btLog(`🎉 ชนะ! ขึ้นชั้น ${ME.floor} · +${gain} เครดิต${catchupBonus>0?' (โบนัสไล่ตาม)':''}${_rel.credit?' (โบนัสเครื่องราง)':''}`);
-    if(_rel.log&&_rel.log.length) _rel.log.forEach(l=>btLog(l));
+    btLog(`🎉 ชนะ! ขึ้นชั้น ${ME.floor} · +${gain} เครดิต${catchupBonus>0?' (โบนัสไล่ตาม)':''}`);
     // ข่าวส่วนรวม — เฉพาะหมุดสำคัญ (กัน feed รก)
     if(ME.floor>21) pushEvent(`🏆 ${ME.name} พิชิตยอดหอคอย!`);
     else if(ME.floor===11) pushEvent(`🏕️ ${ME.name} ถึงจุดพักแรมชั้น 11`);
@@ -2663,14 +1870,12 @@ function endFight(){
     btLog('💀 แพ้...');
     if(ME.hp<=0) pushEvent(`💀 ${ME.name} ตกหอคอยที่ชั้น ${ME.floor+1}!`);
   }
-  // ชั้นหาร 5 (ไม่ใช่ 11) → ตั้งธงให้โชว์หน้าเลือก relic หลังเลือกการ์ด
-  const _relicFloor = (B.won && ME.floor>0 && ME.floor%5===0 && ME.floor!==11);
   pushMyState();
   if(B.won && ME.floor===11){
     // ชั้น 11 = จุดพักแรม
     setTimeout(()=>{ CUR_B=null; showRestStop(); }, 900);
   } else if(B.won && ME.floor<=21){
-    PENDING_RELIC_PICK = _relicFloor;   // จำไว้ โชว์ต่อจากหน้าการ์ด
+    // เลือกการ์ดเพิ่ม 1 ใบ (เหมือน SOLO) — แก้ deck น่าเบื่อ
     setTimeout(()=>{ CUR_B=null; showCardReward(); }, 900);
   } else {
     setTimeout(()=>{
@@ -2684,14 +1889,9 @@ function endFight(){
 
 /* ===== Card reward after each win — สุ่มสีละใบ (กาย/เวท/ป้องกัน) ===== */
 const REWARD_POOLS={
-  // กายภาพ — comborush, finisher (combo) + aegisbash (tank-dps)
-  attack:  ['jab','flurry','bash','vampire','allin','reckless','heavy','comborush','finisher','aegisbash'],
-  // เวท — smite (exhaust) + frostnova/chainlight/hex (control/burst)
-  magic:   ['poisondart','ignite','drain','fireball','smite','frostnova','chainlight','hex'],
-  // ป้องกัน — laststand (exhaust) + riposte/fortify (สวนกลับ/ยืนระยะ)
-  defense: ['thorns','bulwark','ironwall','guard','laststand','riposte','fortify'],
-  // สกิล — กรองมือ/เด็คหมุน
-  skill:   ['foresight','quickdraw','adrenaline','echo'],
+  attack:  ['jab','flurry','bash','vampire','allin','reckless','heavy'],   // กายภาพ
+  magic:   ['poisondart','ignite','drain','fireball'],                      // เวท
+  defense: ['thorns','bulwark','ironwall','guard'],                         // ป้องกัน
 };
 function pickFromPool(pool, rng){ return pool[Math.floor(rng()*pool.length)]; }
 function showCardReward(){
@@ -2705,14 +1905,10 @@ function showCardReward(){
     while(b===a && pool.length>1 && guard<10){ b=pickFromPool(pool, rng); guard++; }
     return [{cid:a,cat},{cid:b,cat}];
   }
-  function pick1(pool, cat){
-    return [{cid:pickFromPool(pool, rng), cat}];
-  }
   const opts=[
     ...pick2(REWARD_POOLS.attack,  '⚔️ กายภาพ'),
     ...pick2(REWARD_POOLS.magic,   '🔮 เวทมนตร์'),
     ...pick2(REWARD_POOLS.defense, '🛡️ ป้องกัน'),
-    ...pick1(REWARD_POOLS.skill,   '✨ สกิล'),
   ];
   const box=$('reward-cards'); box.innerHTML='';
   opts.forEach(o=>{
@@ -2729,65 +1925,19 @@ function showCardReward(){
   showScr('scr-reward');
 }
 let _rewardPicking=false;
-let PENDING_RELIC_PICK=false;
-// ไปต่อหลังเลือกการ์ด: ถ้ามี relic รอ → โชว์หน้าเลือก relic, ไม่งั้นกลับ race
-function afterRewardNext(){
-  if(PENDING_RELIC_PICK){
-    PENDING_RELIC_PICK=false;
-    showRelicReward();
-    return;
-  }
-  showScr('scr-race');
-  updateNextFloorUI();
-  renderRace();
-}
 function pickRewardCard(cid){
   if(_rewardPicking) return;        // กันกดซ้ำ
   _rewardPicking=true;
   if(!MY_LOADOUT.deck) MY_LOADOUT.deck=[];
   MY_LOADOUT.deck.push(cid);
   toast(`+ ${PVP_CARDS[cid].name} เข้าเด็ค!`);
-  afterRewardNext();
-}
-function skipRewardCard(){
-  if(_rewardPicking) return;
-  _rewardPicking=true;
-  afterRewardNext();
-}
-
-/* ===== RELIC REWARD (3 เลือก 1) ===== */
-let _relicPicking=false;
-function showRelicReward(){
-  const choices=rollRelicChoices(3, ROOM.seed);
-  if(!choices.length){   // ไม่มี relic เหลือให้เลือก → ข้ามไป race
-    showScr('scr-race'); updateNextFloorUI(); renderRace(); return;
-  }
-  _relicPicking=false;
-  const box=$('relic-cards'); box.innerHTML='';
-  choices.forEach(rid=>{
-    const r=PVP_RELICS[rid];
-    const rtag=r.rarity==='rare'?' ⭐':(r.rarity==='uncommon'?' ✦':'');
-    const tag=r.social?'<span class="relic-social">ป่วน</span>':'<span class="relic-combat">บิลด์</span>';
-    const el=document.createElement('div');
-    el.className='draft-opt relic-opt'+(r.rarity?' r-'+r.rarity:'');
-    el.innerHTML=`<div class="relic-ic">${r.ic}</div><div class="o-name">${r.name}${rtag} ${tag}</div><div class="o-desc">${r.desc}</div>`;
-    el.onclick=()=>pickRelicReward(rid);
-    box.appendChild(el);
-  });
-  $('relic-floor').textContent=ME.floor;
-  showScr('scr-relic');
-}
-function pickRelicReward(rid){
-  if(_relicPicking) return;
-  _relicPicking=true;
-  grantRelic(rid);
   showScr('scr-race');
   updateNextFloorUI();
   renderRace();
 }
-function skipRelicReward(){
-  if(_relicPicking) return;
-  _relicPicking=true;
+function skipRewardCard(){
+  if(_rewardPicking) return;
+  _rewardPicking=true;
   showScr('scr-race');
   updateNextFloorUI();
   renderRace();
@@ -2959,7 +2109,6 @@ $('btn-leave-race').onclick=leaveRoom;
 $('btn-fight').onclick=startFight;
 $('btn-darkmarket').onclick=openDarkMarket;
 $('reward-skip').onclick=skipRewardCard;
-$('relic-skip').onclick=skipRelicReward;
 $('dm-close').onclick=()=>$('dm-modal').classList.remove('open');
 $('dm-modal').addEventListener('click',e=>{ if(e.target.id==='dm-modal')$('dm-modal').classList.remove('open'); });
 $('btn-bag').onclick=openBag;
