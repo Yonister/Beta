@@ -1692,22 +1692,38 @@ function checkWinConditions(data, players){
     declareEnd(alive[0], 'last_standing');
     return;
   }
-  // ถ้าตายหมดพร้อมกัน (edge) — คนชั้นสูงสุดชนะ
+  // 3) ตายหมด — คนที่ไปได้ "ไกลสุด" ชนะ (ชั้นสูงสุด)
+  //    ใช้ตัวตัดสินที่ deterministic ทุกเครื่องคำนวณได้ค่าเดียวกัน เลี่ยง race:
+  //    ลำดับ: ชั้นสูงสุด → เครดิตเยอะสุด → id น้อยสุด (คงที่)
   if(alive.length===0){
-    let best=ids[0];
-    ids.forEach(id=>{ if((players[id].floor||0)>(players[best].floor||0)) best=id; });
-    declareEnd(best, 'last_standing');
+    const winner = pickFurthest(players, ids);
+    declareEnd(winner, 'highest_floor');
   }
+}
+
+// เลือกผู้เล่นที่ไปได้ไกลสุด แบบ deterministic (ทุกเครื่องได้ผลเดียวกัน)
+function pickFurthest(players, ids){
+  return ids.slice().sort((a,b)=>{
+    const fa=players[a].floor||0, fb=players[b].floor||0;
+    if(fb!==fa) return fb-fa;                       // ชั้นสูงกว่าชนะ
+    const ga=players[a].gold||0, gb=players[b].gold||0;
+    if(gb!==ga) return gb-ga;                       // เครดิตมากกว่าชนะ (เล่นเก่งกว่า)
+    return a<b?-1:1;                                // สุดท้าย: id คงที่ (กันค่าไม่ตรงกัน)
+  })[0];
 }
 
 function declareEnd(winnerId, reason){
   if(!ROOM.ref) return;
-  ROOM.ref.update({ _ending:true });
-  ROOM.ref.update({
-    status:'finished',
-    winner:winnerId,
-    reason:reason,
-    endedAt:firebase.database.ServerValue.TIMESTAMP
+  // กัน race: ใช้ transaction เขียน winner — คนแรกที่สำเร็จเท่านั้นที่กำหนดผล
+  ROOM.ref.transaction(room=>{
+    if(!room) return room;
+    if(room.status==='finished' || room._ending) return;   // มีผลแล้ว — ยกเลิกการเขียน
+    room._ending = true;
+    room.status = 'finished';
+    room.winner = winnerId;
+    room.reason = reason;
+    room.endedAt = firebase.database.ServerValue.TIMESTAMP;
+    return room;
   });
 }
 
@@ -1724,6 +1740,7 @@ function showEndScreen(winnerId, reason){
   const reasonTxt={
     last_standing: iWon?'คุณคือผู้รอดคนสุดท้าย!':`${winnerName} รอดเป็นคนสุดท้าย`,
     race_first: iWon?'คุณถึงยอดหอคอยก่อน!':`${winnerName} ถึงยอดหอคอยก่อน!`,
+    highest_floor: iWon?`คุณไปได้ไกลที่สุด — ชั้น ${ME.floor}!`:`${winnerName} ไปได้ไกลที่สุด (ทุกคนตกหอคอย)`,
   }[reason]||'';
   $('end-result').textContent=iWon?'VICTORY':'DEFEATED';
   $('end-result').className='end-result '+(iWon?'win':'lose');
