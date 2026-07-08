@@ -1,0 +1,18 @@
+Enemy sprites (assets/enemies/*.png)
+=====================================
+From: Dungeon Crawl Stone Soup (rltiles)
+Source: https://github.com/crawl/crawl (crawl-ref/source/rltiles)
+License: CC0 / Public Domain
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Mapping:
+  slime.png    <- mon/amorphous/slime_creature.png
+  bat.png      <- mon/animals/bat.png
+  golem.png    <- mon/nonliving/iron_golem.png
+  wraith.png   <- mon/undead/wraith.png
+  troll.png    <- mon/humanoids/troll.png
+  cactus.png   <- mon/humanoids/giants/cactus_giant.png
+  assassin.png <- mon/humanoids/elves/deep_elf_blademaster.png
+  mimic.png    <- UNUSED/monsters/ravenous_mimic.png
+  shaman.png   <- mon/humanoids/orcs/orc_high_priest.png
+  boss.png     <- mon/demons/brimstone_fiend.png
