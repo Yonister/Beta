@@ -1,0 +1,40 @@
+Enemy sprites (assets/enemies/*.png)
+=====================================
+From: Dungeon Crawl Stone Soup (rltiles)
+Source: https://github.com/crawl/crawl (crawl-ref/source/rltiles)
+License: CC0 / Public Domain
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Card icons (assets/cardpx/*.png) — ใช้งานอยู่ตอนนี้
+=====================================
+From: Dungeon Crawl Stone Soup (rltiles) — CC0 / Public Domain
+item/weapon, item/armour/shields, item/potion, gui/spells, item/misc ฯลฯ
+(pixel art 32x32 เข้าชุดกับสไปรต์มอนสเตอร์/ฉาก)
+
+(เดิมเคยใช้ game-icons.net SVG แต่เปลี่ยนเป็น pixel art crawl ทั้งหมดแล้ว — ลบ SVG ออก)
+
+Battle scene textures (assets/scenes/*.png)
+=====================================
+From: Dungeon Crawl Stone Soup (rltiles) — CC0 เช่นเดียวกับสไปรต์
+  early.png <- dngn/floor/pebble_brown0.png
+  mid.png   <- dngn/floor/crypt0.png
+  late.png  <- dngn/floor/volcanic_floor0.png
+  boss.png  <- dngn/floor/demonic_red1.png
+
+Enemy sprites (batch 2 — CC0, crawl):
+  spider,ogre,imp,gargoyle,wolf,minotaur,harpy,manticore,lich,deathknight,boss2,boss3
+  <- mon/animals/wolf_spider, humanoids/ogre, demons/crimson_imp, nonliving/gargoyle,
+     animals/wolf, demihumanoids/minotaur, demihumanoids/harpy, animals/manticore,
+     undead/ancient_lich, humanoids/humans/death_knight, demons/hell_sentinel, demons/cacodemon
+
+Enemy sprite mapping (batch 1):
+  slime.png    <- mon/amorphous/slime_creature.png
+  bat.png      <- mon/animals/bat.png
+  golem.png    <- mon/nonliving/iron_golem.png
+  wraith.png   <- mon/undead/wraith.png
+  troll.png    <- mon/humanoids/troll.png
+  cactus.png   <- mon/humanoids/giants/cactus_giant.png
+  assassin.png <- mon/humanoids/elves/deep_elf_blademaster.png
+  mimic.png    <- UNUSED/monsters/ravenous_mimic.png
+  shaman.png   <- mon/humanoids/orcs/orc_high_priest.png
+  boss.png     <- mon/demons/brimstone_fiend.png
