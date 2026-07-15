@@ -1,0 +1,2838 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Card Tower — ศึกร่างเงา (PvP)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;800&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="pvp-battle.js"></script>
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBWS7GaxzqX69Y2g9RbF-jJN3s9JsKpZKY",
+  authDomain: "card-tower-leaderboard.firebaseapp.com",
+  databaseURL: "https://card-tower-leaderboard-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "card-tower-leaderboard",
+  storageBucket: "card-tower-leaderboard.firebasestorage.app",
+  messagingSenderId: "930147254596",
+  appId: "1:930147254596:web:6bc6eda58074dc95c31711"
+};
+let rtdb=null;
+try{ firebase.initializeApp(FIREBASE_CONFIG); rtdb=firebase.database(); }
+catch(e){ console.warn('Firebase init failed',e); }
+</script>
+<style>
+  :root{
+    --bg:#0a0714; --bg2:#171028; --panel:#1e1535;
+    --gold:#e8b84a; --gold-br:#ffd873; --purple:#967ad0; --purple-br:#b892ff;
+    --me:#4a9eff; --rival:#ff5466; --line:#3a2860;
+    --ok:#5dcaa5; --warn:#ff7a4d;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    font-family:'Kanit','Segoe UI',-apple-system,sans-serif;background:var(--bg);color:#e6dcff;
+    min-height:100vh;overflow-x:hidden;touch-action:manipulation;
+    background:
+      radial-gradient(ellipse at 50% -5%,#2b1152 0%,transparent 55%),
+      radial-gradient(ellipse at 50% 115%,#1c0a30 0%,transparent 55%),
+      #0a0714;
+  }
+  /* vignette ขอบจอมืด — ให้ความรู้สึกคุกใต้หอคอย */
+  html::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:5;
+    box-shadow:inset 0 0 110px 28px rgba(4,0,14,.6);
+  }
+  .wrap{max-width:480px;margin:0 auto;padding:14px;min-height:100vh;display:flex;flex-direction:column}
+  .scr{display:none;flex-direction:column;gap:14px;flex:1}
+  .scr.active{display:flex}
+
+  /* ===== Title ===== */
+  .logo{text-align:center;margin-top:18px}
+  .logo .t{font-size:1.7em;font-weight:800;color:var(--gold-br);letter-spacing:1px;text-shadow:0 2px 20px rgba(255,190,60,.5),0 1px 0 #6a4a10}
+  .logo .s{font-size:.82em;color:var(--purple);margin-top:4px;letter-spacing:3px}
+  .logo .badge{display:inline-block;margin-top:8px;font-size:.66em;background:#3a1a5a;color:var(--purple-br);padding:3px 12px;border-radius:20px;border:1px solid var(--line)}
+
+  .card-box{background:linear-gradient(180deg,#1b1230,#140d24);border:1px solid var(--line);border-radius:14px;padding:16px;
+    box-shadow:0 4px 18px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05)}
+  .card-box h2{font-size:1em;color:var(--gold);margin-bottom:12px;text-align:center;letter-spacing:.5px;
+    border-bottom:1px solid #2c1e4e;padding-bottom:9px}
+
+  label{display:block;font-size:.78em;color:var(--purple);margin-bottom:5px}
+  input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    padding:11px;color:#e0d4ff;font-size:1em;margin-bottom:12px;text-align:center;letter-spacing:1px}
+  input::placeholder{color:#5a4a80;letter-spacing:0}
+
+  .btn{width:100%;border:none;border-radius:10px;padding:13px;font-size:1em;font-weight:700;
+    cursor:pointer;touch-action:manipulation;transition:transform .1s,opacity .2s}
+  .btn:active{transform:scale(.97)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-gold{background:linear-gradient(145deg,#ffd873,#c8901c);color:#2a1800;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 3px 10px rgba(0,0,0,.4)}
+  .btn-purple{background:linear-gradient(145deg,#8a48f0,#4a1ea0);color:#fff;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 3px 10px rgba(0,0,0,.4)}
+  .btn-dim{background:var(--panel);color:var(--purple);border:1px solid var(--line)}
+  .btn+.btn{margin-top:8px}
+  .or{text-align:center;color:#5a4a80;font-size:.78em;margin:4px 0}
+
+  .hint{font-size:.74em;color:#7060a0;text-align:center;line-height:1.5;margin-top:6px}
+  .err{font-size:.78em;color:var(--rival);text-align:center;min-height:18px;margin-top:4px}
+
+  /* ===== Lobby ===== */
+  .roomcode{font-size:2.2em;font-weight:800;color:var(--gold-br);text-align:center;letter-spacing:6px;
+    background:var(--panel);border:2px dashed #6a5020;border-radius:12px;padding:14px;margin-bottom:6px;
+    text-shadow:0 0 14px rgba(255,190,60,.35)}
+  .pslot{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .pslot .dot{width:10px;height:10px;border-radius:50%;background:#555;flex-shrink:0}
+  .pslot.ready .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .pslot.me{border-color:var(--me)}
+  .pslot .nm{font-weight:600;font-size:.92em;flex:1}
+  .pslot .st{font-size:.72em;color:var(--purple)}
+  .pslot.me .nm{color:var(--me)}
+
+  /* ===== Race screen ===== */
+  .race-head{display:flex;justify-content:space-between;align-items:center}
+  .race-head .rc{font-size:.72em;color:var(--purple)}
+  .seed-tag{font-size:.66em;color:#5a4a80}
+
+  .hpbars{display:flex;gap:10px}
+  .hpwrap{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+  .hpwrap .hl{display:flex;justify-content:space-between;font-size:.74em;margin-bottom:5px}
+  .hpwrap.me .hl{color:var(--me)}
+  .hpwrap.rival .hl{color:var(--rival)}
+  .hptrack{height:9px;background:#2a1a3a;border-radius:5px;overflow:hidden}
+  .hpfill{height:100%;border-radius:5px;transition:width .4s}
+  .hpwrap.me .hpfill{background:linear-gradient(90deg,#2a6acc,#5db0ff)}
+  .hpwrap.rival .hpfill{background:linear-gradient(90deg,#cc2a44,#ff7088)}
+
+  .sim-controls{background:var(--bg2);border:1px dashed var(--warn);border-radius:12px;padding:12px}
+  .sim-controls .lbl{font-size:.68em;color:var(--warn);text-align:center;margin-bottom:8px;letter-spacing:.5px}
+  .sim-row{display:flex;gap:8px}
+  .sim-row .btn{margin:0}
+
+  .status-line{text-align:center;font-size:.78em;color:var(--purple);min-height:20px}
+  .conn{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:4px}
+  .conn.off{background:var(--rival)}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .back-link{font-size:.76em;color:var(--purple);background:none;border:none;cursor:pointer;padding:4px}
+
+  /* ===== End screen ===== */
+  .end-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
+  .end-result{font-size:3em;font-weight:800;letter-spacing:3px;animation:pop .5s ease}
+  .end-result.win{color:var(--gold);text-shadow:0 0 24px rgba(255,200,68,.5)}
+  .end-result.lose{color:var(--rival);text-shadow:0 0 24px rgba(255,84,102,.4)}
+  @keyframes pop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+  .end-sub{font-size:.9em;color:var(--purple)}
+  .end-detail{width:100%;max-width:300px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .end-row{display:flex;justify-content:space-between;font-size:.84em;padding:6px 0;border-bottom:1px solid var(--line)}
+  .end-row:last-child{border-bottom:none}
+  .end-wrap .btn{max-width:280px}
+
+  /* ===== Void Storm ===== */
+  body.storm::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:90;
+    box-shadow:inset 0 0 60px 14px rgba(150,40,255,.55);
+    animation:stormpulse 1s ease-in-out infinite;
+  }
+  @keyframes stormpulse{0%,100%{box-shadow:inset 0 0 50px 10px rgba(150,40,255,.35)}50%{box-shadow:inset 0 0 80px 22px rgba(180,60,255,.7)}}
+  .storm-warn{
+    display:none;background:linear-gradient(90deg,#3a0a5a,#5a1a8a);border:1px solid #b060ff;
+    border-radius:10px;padding:9px 12px;text-align:center;font-size:.82em;font-weight:700;
+    color:#f0d0ff;animation:warnblink 1s ease-in-out infinite;margin-bottom:2px;
+  }
+  @keyframes warnblink{0%,100%{opacity:1}50%{opacity:.55}}
+  .storm-drain{display:inline-block;background:#1a0030;color:#ff88cc;border-radius:6px;padding:1px 7px;font-size:.85em;margin-left:4px}
+
+  /* ===== Battle ===== */
+  /* ฉากสนามรบ — texture เปลี่ยนตามช่วงชั้น (JS ใส่ class scene-*) + overlay มืดให้อ่านง่าย + หมอกลอย */
+  .bt-enemy{text-align:center;padding:14px 0 12px;border-radius:14px;border:1px solid var(--line);
+    overflow:hidden;margin-bottom:6px;background-size:64px 64px;background-repeat:repeat;image-rendering:pixelated}
+  .scene-early{background-image:url('assets/scenes/early.png')}
+  .scene-mid{background-image:url('assets/scenes/mid.png')}
+  .scene-late{background-image:url('assets/scenes/late.png')}
+  .scene-boss{background-image:url('assets/scenes/boss.png')}
+  .bt-enemy::before{content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(10,7,20,.78),rgba(10,7,20,.42) 45%,rgba(10,7,20,.82))}
+  .bt-enemy::after{content:'';position:absolute;inset:-25%;pointer-events:none;z-index:1;
+    background:radial-gradient(ellipse 55% 38% at 30% 32%,rgba(150,100,255,.11),transparent 60%),
+               radial-gradient(ellipse 48% 34% at 72% 62%,rgba(90,50,180,.13),transparent 60%);
+    animation:fogdrift 13s ease-in-out infinite alternate}
+  .scene-boss::after{background:radial-gradient(ellipse 55% 38% at 30% 32%,rgba(255,70,60,.13),transparent 60%),
+               radial-gradient(ellipse 48% 34% at 72% 62%,rgba(200,40,90,.14),transparent 60%)}
+  @keyframes fogdrift{from{transform:translate(-4%,-2%)}to{transform:translate(4%,2%)}}
+  .bt-enemy>*{position:relative;z-index:2}
+  .bt-intent{display:inline-block;background:#2c1244;border:1px solid #7a4ab0;border-radius:20px;padding:4px 14px;font-size:.82em;color:#ffb0e0;margin-bottom:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.35)}
+  .bt-spr{font-size:3.4em;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+  .bt-spr img{width:112px;height:112px;image-rendering:pixelated;vertical-align:bottom;
+    filter:drop-shadow(0 6px 14px rgba(0,0,0,.65))}
+  .bt-ename{font-size:.86em;color:var(--purple);margin:4px 0 6px}
+  .bt-ehp-track{position:relative;height:18px;background:#2a1020;border-radius:9px;overflow:hidden;max-width:240px;margin:0 auto;border:1px solid #5a2030}
+  .bt-ehp-fill{height:100%;background:linear-gradient(90deg,#cc2a44,#ff6080);width:100%;transition:width .35s}
+  .bt-ehp-txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.72em;font-weight:700;color:#fff;text-shadow:0 1px 2px #000}
+  .bt-estatus{font-size:.74em;color:#ff9050;margin-top:5px;min-height:16px}
+  /* กล่อง log — บรรทัดล่าสุดเด่น บรรทัดเก่าจาง */
+  .bt-log{flex:1;min-height:52px;max-height:86px;overflow-y:auto;font-size:.72em;color:#9080b0;
+    text-align:left;padding:7px 11px;line-height:1.55;background:rgba(18,12,34,.75);
+    border:1px solid var(--line);border-radius:10px;margin:6px 0}
+  /* ชิปสถานะผู้เล่น — แยกเม็ดต่อค่า */
+  .bt-pstats{display:flex;justify-content:center;gap:7px;font-size:.88em;margin-bottom:8px}
+  .bt-pstats>span{background:var(--bg2);border:1px solid var(--line);border-radius:10px;
+    padding:7px 11px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  .bt-pstats b{color:var(--gold)}
+  /* มือการ์ดพัดโค้ง — transform/ระยะซ้อนคำนวณใน JS ตามจำนวนใบ */
+  .bt-hand{display:flex;gap:0;justify-content:center;flex-wrap:nowrap;min-height:146px;
+    margin-bottom:8px;padding-top:12px;overflow:visible}
+  /* ===== การ์ด pixel-art frame (ใช้ร่วมทั้งมือ + reward/draft) ===== */
+  .pxc{border-radius:7px;border:3px solid var(--fr,#665);background:#120c22;
+    display:flex;flex-direction:column;overflow:hidden;position:relative;
+    box-shadow:0 3px 8px rgba(0,0,0,.5);image-rendering:pixelated}
+  .pxc .c-bar{background:var(--bar,#333);color:#fff5e0;font-family:'Silkscreen',monospace;font-weight:700;
+    letter-spacing:.3px;padding:4px 3px;text-align:center;text-shadow:1px 1px 0 rgba(0,0,0,.6);
+    white-space:nowrap;overflow:hidden}
+  .pxc .c-scene{flex:1;background:linear-gradient(180deg,var(--s1,#444),var(--s2,#111));
+    display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .pxc .c-scene::before{content:'';position:absolute;left:-20%;right:-20%;bottom:-28px;height:56px;border-radius:50%;background:rgba(0,0,0,.16)}
+  .pxc .c-art{image-rendering:pixelated;position:relative;z-index:2;filter:drop-shadow(2px 2px 0 rgba(0,0,0,.5))}
+  .pxc .c-foot{background:var(--foot,#222);color:#fff;font-family:'Kanit',sans-serif;line-height:1.2;
+    padding:3px 4px;text-align:center;display:flex;align-items:center;justify-content:center;text-shadow:1px 1px 0 rgba(0,0,0,.5)}
+  .pxc .c-cost{position:absolute;z-index:4;border-radius:50%;background:#1a1f30;border:2px solid #fff;color:#fff;
+    font-family:'Silkscreen',monospace;display:flex;align-items:center;justify-content:center}
+  .pxc .c-rar{position:absolute;z-index:4;font-family:'Silkscreen',monospace;color:#ffe08a;text-shadow:1px 1px 0 #000}
+  .pxc .c-exh{position:absolute;z-index:4;border-radius:50%;background:#a04010;border:2px solid #ffb070;color:#fff;
+    font-family:'Silkscreen',monospace;display:flex;align-items:center;justify-content:center}
+  .pxc.t-attack {--fr:#ff5a3c;--bar:#a83223;--s1:#ff8a3c;--s2:#7a1e10;--foot:#5a160c}
+  .pxc.t-magic  {--fr:#b060ff;--bar:#6a2eb0;--s1:#b45aff;--s2:#320c58;--foot:#260844}
+  .pxc.t-defense{--fr:#3ca0ff;--bar:#245c98;--s1:#4a90d0;--s2:#0e3258;--foot:#0a2444}
+  .pxc.t-skill  {--fr:#4ad07a;--bar:#238040;--s1:#5ac878;--s2:#0f4a28;--foot:#0a381e}
+  .pxc.t-curse  {--fr:#e05a8a;--bar:#7a2450;--s1:#c04080;--s2:#340e22;--foot:#280a1a}
+  .pxc.r-rare{box-shadow:0 3px 8px rgba(0,0,0,.5),0 0 8px rgba(255,210,80,.45)}
+  .pxc.r-legendary{animation:legendglow 1.6s ease-in-out infinite}
+  @keyframes legendglow{0%,100%{box-shadow:0 3px 8px rgba(0,0,0,.5),0 0 8px rgba(255,150,60,.4)}50%{box-shadow:0 3px 8px rgba(0,0,0,.5),0 0 18px rgba(255,170,70,.85)}}
+  /* ---- การ์ดในมือ ---- */
+  .bt-card{width:76px;height:120px;cursor:pointer;transform-origin:50% 100%;transition:transform .12s}
+  .bt-card .c-bar{font-size:.5em;min-height:15px}
+  .bt-card .c-scene{min-height:42px}
+  .bt-card .c-art{width:42px;height:42px}
+  .bt-card .c-foot{font-size:.46em;min-height:20px}
+  .bt-card .c-cost{top:16px;left:2px;width:18px;height:18px;font-size:.55em}
+  .bt-card .c-rar{top:15px;right:3px;font-size:.5em}
+  .bt-card .c-exh{top:35px;right:2px;width:17px;height:17px;font-size:.46em}
+  .bt-card:active{filter:brightness(1.25)}
+  .bt-card.unplayable{opacity:.42}
+  /* ---- การ์ดในจอ reward/draft (ใหญ่กว่า) ---- */
+  .draft-opt{width:104px;cursor:pointer;transition:transform .12s}
+  .draft-opt:active{transform:scale(.96)}
+  .draft-opt .c-bar{font-size:.64em;min-height:18px}
+  .draft-opt .c-scene{min-height:58px}
+  .draft-opt .c-art{width:54px;height:54px}
+  .draft-opt .c-foot{font-size:.66em;min-height:36px}
+  .draft-opt .c-cost{top:23px;left:3px;width:23px;height:23px;font-size:.66em}
+  .draft-opt .c-rar{top:21px;right:4px;font-size:.66em}
+  .draft-opt .c-exh{top:48px;right:3px;width:20px;height:20px;font-size:.52em}
+  .draft-opt.sel{transform:scale(1.05);box-shadow:0 0 0 3px #ffd873,0 4px 12px rgba(0,0,0,.55)}
+  .cl-art,.di-ic img{image-rendering:pixelated}
+  .bt-timer{font-size:.8em;font-weight:700;color:#90d0ff;background:rgba(46,109,180,.2);border:1px solid #2e6db4;border-radius:12px;padding:3px 10px}
+  .bt-timer.urgent{color:#ff8080;background:rgba(192,57,43,.25);border-color:#c0392b;animation:warnblink .6s ease-in-out infinite}
+
+  /* ===== Battle juice: เลขดาเมจเด้ง + ศัตรูสั่น + player โดนตี ===== */
+  .bt-enemy{position:relative}
+  .dmg-pop{position:absolute;left:50%;top:34%;font-weight:800;font-size:1.4em;pointer-events:none;z-index:50;
+    text-shadow:0 2px 4px #000;animation:dmgfloat .8s ease forwards}
+  .dmg-pop.hurt{color:#ff5466}
+  .dmg-pop.heal{color:#5dcaa5}
+  @keyframes dmgfloat{from{opacity:1;transform:translate(-50%,0) scale(1.15)}to{opacity:0;transform:translate(-50%,-48px) scale(.9)}}
+  .bt-spr.hit{animation:eshake .3s ease}
+  @keyframes eshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px) rotate(-4deg)}75%{transform:translateX(7px) rotate(4deg)}}
+  .bt-spr.lunge{animation:elunge .5s ease}
+  @keyframes elunge{0%{transform:translateY(0)}30%{transform:translateY(-9px) scale(1.05)}60%{transform:translateY(16px) scale(1.12)}100%{transform:translateY(0)}}
+  .bt-pstats{position:relative}
+  .bt-pstats.hurt>span:first-child{animation:hurtflash .45s ease}
+  @keyframes hurtflash{0%,100%{border-color:var(--line)}50%{border-color:var(--rival);box-shadow:0 0 14px rgba(255,84,102,.55)}}
+  .bt-log div{padding:1px 0;opacity:.5}
+  .bt-log div:last-child{opacity:1;color:#d8c8ff}
+
+  /* ===== How to play ===== */
+  .ht-body{max-height:56vh;overflow-y:auto;margin-bottom:12px;padding-right:4px}
+  .ht-sec{margin-bottom:12px}
+  .ht-sec h3{font-size:.88em;color:var(--gold);margin-bottom:3px}
+  .ht-sec p{font-size:.78em;color:#c9bce8;line-height:1.6}
+  .ht-sec b{color:#ffd873}
+
+  /* ===== Confetti (จอชนะ) ===== */
+  .confetti-box{position:fixed;inset:0;pointer-events:none;z-index:8500;overflow:hidden}
+  .confetti-box i{position:absolute;top:-14px;width:8px;height:13px;border-radius:2px;animation:confall linear forwards}
+  @keyframes confall{to{transform:translateY(106vh) rotate(720deg);opacity:.65}}
+
+  /* ===== Rest / relic ===== */
+  .rest-choice{display:flex;align-items:center;gap:12px;background:var(--panel);border:1.5px solid #2a6a4a;
+    border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:transform .1s}
+  .rest-choice:active{transform:scale(.98)}
+  .rest-ic{font-size:1.9em}
+  .rest-t{font-size:1em;font-weight:700}
+  .rest-d{font-size:.74em;color:#9c8cc0;margin-top:2px}
+  .relic-opt{display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);
+    border-radius:11px;padding:11px 12px;cursor:pointer;transition:transform .1s,border-color .2s}
+  .relic-opt:active{transform:scale(.98)}
+  .relic-opt:hover{border-color:#b060ff}
+  .relic-opt .r-ic{font-size:1.7em;flex-shrink:0}
+  .relic-opt .r-nm{font-size:.9em;font-weight:700;color:#e6dcff}
+  .relic-opt .r-ds{font-size:.72em;color:#9c8cc0;line-height:1.35;margin-top:2px}
+  .relic-strip{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+  .relic-strip .rchip{font-size:1.05em;background:#1e1030;border:1px solid #6a3a9a;border-radius:8px;
+    width:30px;height:30px;display:flex;align-items:center;justify-content:center}
+
+  /* ===== Card library ===== */
+  .cl-glos{display:flex;gap:8px;font-size:.76em;color:#c9bce8;padding:3px 0;line-height:1.45;align-items:flex-start}
+  .cl-gi{min-width:40px;text-align:center;flex-shrink:0}
+  .cl-row{display:flex;gap:9px;align-items:center;background:var(--panel);border:1px solid var(--line);
+    border-left-width:4px;border-radius:8px;padding:6px 8px;margin-bottom:6px}
+  .cl-row.r-uncommon{border-left-color:#4a90d0}
+  .cl-row.r-rare{border-left-color:#d0a020}
+  .cl-row.r-legendary{border-left-color:#ff7a3c;background:linear-gradient(90deg,#2a1810,var(--panel) 55%)}
+  .cl-art{width:26px;height:26px;flex-shrink:0;filter:opacity(.9)}
+  .cl-name{font-size:.8em;font-weight:700;color:#e6dcff}
+  .cl-cost{color:var(--me);font-size:.85em;font-weight:600}
+  .cl-rar{font-size:.78em;color:var(--gold)}
+  .cl-desc{font-size:.7em;color:#9c8cc0;line-height:1.35}
+
+  /* ===== Player title (ฉายา) ===== */
+  .ptitle{display:block;font-size:.68em;color:var(--gold);font-weight:600;line-height:1.2}
+  /* ===== Home hero: หอคอย pixel + ไฟลอย + มอนสเตอร์เดินผ่าน ===== */
+  .home-hero{position:relative;text-align:center;padding:20px 10px 14px;border-radius:18px;overflow:hidden;
+    background:radial-gradient(ellipse 85% 70% at 50% 0%,#2e1152,rgba(10,7,20,0) 75%)}
+  .ember{position:absolute;bottom:18px;width:4px;height:4px;border-radius:50%;background:#ffcf6a;
+    opacity:0;animation:emberrise 4.4s linear infinite;pointer-events:none}
+  @keyframes emberrise{0%{transform:translateY(0);opacity:0}15%{opacity:.75}100%{transform:translateY(-115px);opacity:0}}
+  /* ฉากหอคอย: หอ 4 ชั้นผิวหินจริง + การ์ดลอยล้อม + พื้นดันเจียน */
+  .hero-scene{position:relative;height:196px;margin-top:2px}
+  .hero-ground{position:absolute;left:-14px;right:-14px;bottom:0;height:24px;
+    background:linear-gradient(180deg,rgba(10,7,20,.3),rgba(10,7,20,.75)),url('assets/scenes/early.png');
+    background-size:auto,26px;image-rendering:pixelated;border-top:2px solid #3a2a60}
+  .h-tower{position:absolute;left:50%;transform:translateX(-50%);bottom:20px;width:120px;height:158px;
+    filter:drop-shadow(0 0 16px rgba(180,90,255,.4));z-index:2}
+  .h-tier{position:absolute;left:50%;transform:translateX(-50%);border:2px solid #5a4488;border-radius:2px;
+    background:linear-gradient(rgba(38,24,72,.62),rgba(30,18,58,.72)),url('assets/scenes/mid.png');
+    background-size:auto,24px;image-rendering:pixelated}
+  .h-tier.t1{width:106px;height:46px;bottom:0}
+  .h-tier.t2{width:86px;height:40px;bottom:44px}
+  .h-tier.t3{width:64px;height:36px;bottom:82px}
+  .h-tier.t4{width:46px;height:28px;bottom:116px}
+  .h-crown{position:absolute;left:50%;transform:translateX(-50%);bottom:143px;width:56px;height:9px;
+    background:repeating-linear-gradient(90deg,#4a3878 0 9px,transparent 9px 15px)}
+  .h-win{position:absolute;width:9px;height:12px;background:#ffcf6a;border-radius:2px;
+    box-shadow:0 0 9px #ffcf6a;animation:winflick 2.4s ease-in-out infinite;z-index:3}
+  .h-win.w1{left:calc(50% - 24px);bottom:16px}
+  .h-win.w2{left:calc(50% + 15px);bottom:16px;animation-delay:.7s}
+  .h-win.w3{left:calc(50% - 4.5px);bottom:56px;animation-delay:1.4s}
+  .h-win.w4{left:calc(50% - 4.5px);bottom:92px;animation-delay:2.1s}
+  @keyframes winflick{0%,100%{opacity:1}50%{opacity:.45}}
+  .h-door{position:absolute;left:calc(50% - 9px);bottom:0;width:18px;height:19px;background:#0c0818;
+    border:2px solid #55418a;border-bottom:none;border-radius:9px 9px 0 0;z-index:3}
+  .ht-boss{position:absolute;top:-16px;left:50%;transform:translateX(-50%);width:44px;height:44px;
+    image-rendering:pixelated;z-index:4;filter:drop-shadow(0 3px 7px rgba(0,0,0,.65))}
+  /* การ์ด pixel ลอยล้อมหอคอย */
+  .hero-card{position:absolute;width:58px;border-radius:6px;border:2px solid var(--c);background:#120c22;
+    overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,.55);z-index:1;
+    animation:cardfloat 3.8s ease-in-out infinite}
+  .hero-card .b{background:var(--b);font-family:'Silkscreen',monospace;font-size:7px;color:#fff;
+    text-align:center;padding:2px 1px;letter-spacing:.5px;text-shadow:1px 1px 0 rgba(0,0,0,.5);white-space:nowrap;overflow:hidden}
+  .hero-card .s{height:44px;background:linear-gradient(180deg,var(--s1),var(--s2));
+    display:flex;align-items:center;justify-content:center}
+  .hero-card .s img{width:30px;height:30px;image-rendering:pixelated;filter:drop-shadow(1px 2px 0 rgba(0,0,0,.5))}
+  .hero-card.hc-leg{box-shadow:0 4px 10px rgba(0,0,0,.55),0 0 12px rgba(255,210,74,.5)}
+  @keyframes cardfloat{0%,100%{transform:rotate(var(--r,0deg)) translateY(0)}50%{transform:rotate(var(--r,0deg)) translateY(-8px)}}
+  .home-walker{position:absolute;bottom:16px;left:-48px;width:38px;height:38px;image-rendering:pixelated;
+    opacity:.9;pointer-events:none;z-index:2}
+  @keyframes walkL{from{left:-48px}to{left:100%}}
+  @keyframes walkR{from{left:100%}to{left:-48px}}
+  .home-title{font-size:1.9em;font-weight:800;color:var(--gold-br);letter-spacing:1px;margin-top:8px;
+    text-shadow:0 2px 20px rgba(255,190,60,.5),0 1px 0 #6a4a10}
+  .home-sub{font-family:'Silkscreen',monospace;font-size:.6em;color:var(--purple-br);letter-spacing:3px;margin-top:7px}
+  .home-tag{font-size:.8em;color:#c9bce8;margin-top:8px}
+  .home-tag b{color:var(--gold)}
+  /* การ์ดโปรไฟล์: ฉายา + สถิติ */
+  .home-profile{display:none;background:linear-gradient(180deg,#1b1230,#140d24);border:1px solid var(--line);
+    border-radius:14px;padding:11px 14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .home-profile.on{display:flex;align-items:center;gap:12px}
+  .hp-title{font-size:.95em;font-weight:700;color:var(--gold-br);white-space:nowrap}
+  .hp-chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:1}
+  .hp-chip{background:#0e0a1c;border:1px solid #3a2860;border-radius:8px;padding:3px 9px;font-size:.7em;color:#c9bce8}
+  .hp-chip b{color:var(--gold)}
+  /* ปุ่มโหมดซ้อมเด่นๆ */
+  .btn-practice{background:linear-gradient(180deg,#152a20,#0c1a12);border:1.5px solid #2a6a4a;color:#7de0b0;font-size:.92em}
+
+  /* ===== Draft ===== */
+  .draft-head{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+  .draft-title{font-size:1.2em;font-weight:800;color:var(--gold)}
+  .draft-timer{font-size:1.4em;font-weight:800;color:#fff;background:#3a0a2a;border:2px solid var(--rival);
+    border-radius:10px;min-width:54px;text-align:center;padding:3px 0}
+  .draft-timer.urgent{animation:warnblink .5s ease-in-out infinite;color:var(--rival)}
+  .draft-step{font-size:.84em;color:var(--purple-br);text-align:center;margin:8px 0 4px;font-weight:700}
+  .draft-hint{font-size:.76em;color:var(--purple);text-align:center;margin-bottom:10px}
+  .draft-grid{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding-top:6px}
+  .draft-deck{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin:10px 0;min-height:24px}
+  .draft-deck .dchip{font-size:.62em;background:#1a1240;border:1px solid var(--line);border-radius:6px;padding:2px 6px;color:#b0a0d0}
+  .draft-wait{text-align:center;color:var(--ok);font-size:.84em;margin-top:8px;font-weight:700}
+
+  /* ===== Stat allocation ===== */
+  .btn-info{background:none;border:1px solid var(--purple);color:var(--purple-br);border-radius:8px;padding:5px 12px;font-size:.78em;cursor:pointer;font-family:inherit}
+  .btn-info:active{background:rgba(122,60,240,.2)}
+  .stat-list{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+  .stat-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .stat-info{flex:1;min-width:0}
+  .stat-name{font-size:.92em;font-weight:700;color:#e0d4ff}
+  .stat-per{font-size:.66em;color:var(--purple);line-height:1.3;margin-top:2px}
+  .stat-ctrl{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+  .stat-btn{width:34px;height:34px;border-radius:8px;border:none;font-size:1.3em;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
+  .stat-btn.plus{background:linear-gradient(145deg,#7a3cf0,#4a1ea0);color:#fff}
+  .stat-btn.minus{background:var(--panel);color:var(--purple-br);border:1px solid var(--line)}
+  .stat-btn:active{transform:scale(.9)}
+  .stat-val{font-size:1.2em;font-weight:800;color:var(--gold);min-width:24px;text-align:center}
+  .si-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .si-name{font-size:.86em;font-weight:700;color:#e0d4ff;white-space:nowrap}
+  .si-desc{font-size:.74em;color:var(--purple);text-align:right}
+
+  /* ===== Toast notifications ===== */
+  #toast-box{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9500;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;width:90%;max-width:340px}
+  .toast-item{background:linear-gradient(180deg,#3a1a5a,#2a0f44);border:1px solid #b060ff;border-radius:10px;
+    padding:9px 14px;font-size:.82em;color:#f0e0ff;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.5);
+    animation:toastin .3s ease;font-weight:600}
+  .toast-item.out{animation:toastout .3s ease forwards}
+  @keyframes toastin{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes toastout{to{opacity:0;transform:translateY(-12px)}}
+
+  /* ===== BR scoreboard ===== */
+  .scoreboard{display:flex;flex-direction:column;gap:5px;margin:8px 0;max-height:230px;overflow-y:auto}
+  .sb-row{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+  .sb-row.me{border-color:var(--me);background:#12203a}
+  .sb-row.dead{opacity:.45;filter:grayscale(.6)}
+  .sb-row.leader{border-color:#c8983a;box-shadow:0 0 10px rgba(216,168,64,.22)}
+  .sb-rank{font-size:.82em;font-weight:800;color:var(--gold);min-width:22px;text-align:center}
+  .sb-name{font-size:.84em;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sb-row.me .sb-name{color:var(--me)}
+  .sb-floor{font-size:.78em;color:var(--purple-br);min-width:48px;text-align:right}
+  .sb-hp{width:70px}
+  .sb-hp-track{height:8px;background:#2a1a3a;border-radius:4px;overflow:hidden}
+  .sb-hp-fill{height:100%;background:linear-gradient(90deg,#cc2a44,#ff7088);transition:width .3s}
+  .sb-row.me .sb-hp-fill{background:linear-gradient(90deg,#2a6acc,#5db0ff)}
+  .sb-hptxt{font-size:.64em;color:#9080b0;text-align:right;margin-top:1px}
+  .my-status{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px}
+  .my-floor{font-size:.92em;color:#e0d4ff}
+  .my-floor b{color:var(--gold);font-size:1.1em}
+
+  /* ===== Dark Market ===== */
+  .dm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:700;display:none;align-items:center;justify-content:center;padding:18px}
+  .dm-overlay.open{display:flex}
+  .dm-box{background:linear-gradient(160deg,#1a0a24,#0e0618);border:2px solid #6a2a8a;border-radius:16px;padding:18px;max-width:380px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 8px 40px rgba(120,20,160,.4)}
+  .dm-title{font-size:1.2em;font-weight:800;color:#d090ff;text-align:center;margin-bottom:4px}
+  .dm-credit{text-align:center;font-size:.84em;color:var(--purple);margin-bottom:12px}
+  .dm-credit b{color:var(--gold)}
+  .dm-target-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .dm-target-row label{font-size:.82em;color:var(--purple-br);white-space:nowrap}
+  .dm-target-row select{flex:1;background:var(--panel);border:1px solid #6a2a8a;border-radius:8px;padding:9px;color:#e0d4ff;font-size:.9em}
+  .dm-items{display:flex;flex-direction:column;gap:8px}
+  .dm-item{display:flex;align-items:center;gap:10px;background:#160a22;border:1px solid #3a1a4a;border-radius:10px;padding:10px;cursor:pointer;transition:transform .1s,border-color .2s}
+  .dm-item:active{transform:scale(.98)}
+  .dm-item.afford:hover{border-color:#a050d0}
+  .dm-item.cant{opacity:.45}
+  .dm-item .di-ic{font-size:1.5em}
+  .dm-item .di-body{flex:1}
+  .dm-item .di-name{font-size:.86em;font-weight:700;color:#e0d4ff}
+  .dm-item .di-desc{font-size:.68em;color:#9080b0;line-height:1.3}
+  .dm-item .di-cost{font-size:.82em;font-weight:800;color:var(--gold);white-space:nowrap}
+  .dm-msg{text-align:center;font-size:.8em;color:var(--ok);min-height:18px;margin:10px 0}
+  #btn-darkmarket{font-size:.86em}
+  #btn-darkmarket.shop-open{border-color:#b060ff;color:#e0c0ff;animation:shopglow 1.5s ease-in-out infinite}
+  @keyframes shopglow{0%,100%{box-shadow:0 0 0 rgba(176,96,255,0)}50%{box-shadow:0 0 14px rgba(176,96,255,.6)}}
+  /* smoke screen sabotage */
+  body.smoke::after{content:'🌫️ มืดมน!';position:fixed;inset:0;pointer-events:auto;z-index:9000;
+    background:rgba(6,6,10,.985);
+    display:flex;align-items:center;justify-content:center;
+    color:rgba(120,120,140,.5);font-size:1.4em;letter-spacing:2px;
+    animation:smokein .5s ease}
+  @keyframes smokein{from{opacity:0}to{opacity:1}}
+  /* ===== ก่อกวนจอเพิ่มเติม: กลับหัว / เมาหมัด / ฝูงค้างคาว ===== */
+  body.flipped .wrap{transform:rotate(180deg)}
+  body.dizzy .wrap{animation:dizzywob 2.4s ease-in-out infinite}
+  @keyframes dizzywob{0%,100%{transform:rotate(-2.2deg) translateX(-6px)}50%{transform:rotate(2.2deg) translateX(6px)}}
+  .bug-box{position:fixed;inset:0;pointer-events:none;z-index:8800;overflow:hidden}
+  .bug-box img{position:absolute;image-rendering:pixelated;filter:drop-shadow(0 2px 5px rgba(0,0,0,.65))}
+  @keyframes bugflyL{from{left:-64px}to{left:105%}}
+  @keyframes bugflyR{from{left:105%}to{left:-64px}}
+  /* หัวหมวดร้านค้ามืด */
+  .dm-cat{font-size:.72em;color:var(--gold);font-weight:700;margin:10px 2px 2px;letter-spacing:.5px}
+  .dm-cat:first-child{margin-top:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== SCREEN: HOME ===== -->
+  <div class="scr active" id="scr-home">
+    <!-- Hero: หอคอย pixel + ไฟลอย + มอนสเตอร์เดินผ่าน -->
+    <div class="home-hero">
+      <span class="ember" style="left:18%"></span>
+      <span class="ember" style="left:38%;animation-delay:1.6s"></span>
+      <span class="ember" style="left:58%;animation-delay:.8s"></span>
+      <span class="ember" style="left:76%;animation-delay:2.3s"></span>
+      <span class="ember" style="left:90%;animation-delay:3.1s"></span>
+      <div class="hero-scene">
+        <div class="hero-card" style="--c:#ff5a3c;--b:#a83223;--s1:#ff8a3c;--s2:#7a1e10;--r:-14deg;left:1%;bottom:74px;animation-delay:0s"><div class="b">STRIKE</div><div class="s"><img src="assets/cardpx/strike.png" alt=""></div></div>
+        <div class="hero-card" style="--c:#b060ff;--b:#6a2eb0;--s1:#b45aff;--s2:#320c58;--r:-6deg;left:13%;bottom:16px;animation-delay:.9s"><div class="b">FIREBALL</div><div class="s"><img src="assets/cardpx/fireball.png" alt=""></div></div>
+        <div class="hero-card" style="--c:#3ca0ff;--b:#245c98;--s1:#4a90d0;--s2:#0e3258;--r:7deg;right:13%;bottom:20px;animation-delay:1.7s"><div class="b">GUARD</div><div class="s"><img src="assets/cardpx/guard.png" alt=""></div></div>
+        <div class="hero-card hc-leg" style="--c:#ffd24a;--b:#c8901c;--s1:#ffcf5a;--s2:#7a4a0a;--r:14deg;right:1%;bottom:78px;animation-delay:2.4s"><div class="b">DRAGON</div><div class="s"><img src="assets/cardpx/dragonheart.png" alt=""></div></div>
+        <div class="h-tower">
+          <img class="ht-boss" src="assets/enemies/boss.png" alt="">
+          <div class="h-crown"></div>
+          <div class="h-tier t4"></div>
+          <div class="h-tier t3"></div>
+          <div class="h-tier t2"></div>
+          <div class="h-tier t1"></div>
+          <div class="h-win w1"></div>
+          <div class="h-win w2"></div>
+          <div class="h-win w3"></div>
+          <div class="h-win w4"></div>
+          <div class="h-door"></div>
+        </div>
+        <div class="hero-ground"></div>
+        <img class="home-walker" id="home-walker" src="assets/enemies/slime.png" alt="">
+      </div>
+      <div class="home-title">⚔️ ศึกร่างเงา</div>
+      <div class="home-sub">CARD TOWER · PVP</div>
+      <div class="home-tag">ไต่หอคอยไม่รู้จบ — <b>ใครไปไกลสุด ชนะ</b></div>
+    </div>
+
+    <!-- โปรไฟล์: ฉายา + สถิติ -->
+    <div class="home-profile" id="home-stats"></div>
+
+    <div class="card-box">
+      <h2>🆕 สร้างห้องใหม่</h2>
+      <label>ชื่อของคุณ</label>
+      <input type="text" id="name-create" maxlength="16" placeholder="ตั้งชื่อ...">
+      <button class="btn btn-gold" id="btn-create">สร้างห้อง ⚔️</button>
+    </div>
+
+    <div class="or">— หรือ —</div>
+
+    <div class="card-box">
+      <h2>🚪 เข้าห้องเพื่อน</h2>
+      <label>ชื่อของคุณ</label>
+      <input type="text" id="name-join" maxlength="16" placeholder="ตั้งชื่อ...">
+      <label>รหัสห้อง (4 ตัว)</label>
+      <input type="text" id="room-join" maxlength="4" placeholder="ABCD" style="text-transform:uppercase">
+      <button class="btn btn-purple" id="btn-join">เข้าห้อง</button>
+    </div>
+
+    <!-- โหมดซ้อมเด่นๆ สำหรับมือใหม่ -->
+    <button class="btn btn-practice" id="btn-practice">🎯 โหมดซ้อม — ไต่หอคอยคนเดียว</button>
+
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn-info" id="btn-howto">📜 วิธีเล่น</button>
+      <button class="btn-info" id="btn-cardlib">🃏 คลังการ์ด</button>
+    </div>
+    <div class="err" id="home-err"></div>
+  </div>
+
+  <!-- ===== SCREEN: LOBBY ===== -->
+  <div class="scr" id="scr-lobby">
+    <div class="topbar">
+      <button class="back-link" id="btn-leave-lobby">← ออก</button>
+      <span class="seed-tag" id="lobby-conn"><span class="conn"></span>เชื่อมต่อแล้ว</span>
+    </div>
+    <div class="logo"><div class="s">รหัสห้อง — ส่งให้เพื่อน</div></div>
+    <div class="roomcode" id="lobby-code">----</div>
+    <div class="hint">เพื่อนพิมพ์รหัสนี้ในช่อง "เข้าห้องเพื่อน" เพื่อเข้ามา</div>
+
+    <div class="card-box">
+      <h2>ผู้เล่นในห้อง</h2>
+      <div id="lobby-players"></div>
+    </div>
+
+    <button class="btn btn-purple" id="btn-ready" disabled>รอผู้เล่นอีกคน...</button>
+    <button class="btn btn-gold" id="btn-start-game" style="display:none" disabled>เริ่มเกม</button>
+    <div class="status-line" id="lobby-status"></div>
+  </div>
+
+  <!-- ===== SCREEN: DRAFT (stat allocation + card pick) ===== -->
+  <div class="scr" id="scr-draft">
+    <div class="draft-head">
+      <div class="draft-title">⚒️ สร้างนักรบ</div>
+      <div class="draft-timer" id="draft-timer">2:00</div>
+    </div>
+
+    <!-- Step 1: stats -->
+    <div id="draft-step1">
+      <div class="draft-step">กระจาย <b id="pts-left">10</b> แต้มลงสเตตัส</div>
+      <div class="draft-hint">
+        <button class="btn-info" id="btn-stat-info">❓ ดูคำอธิบายแต่ละสเตตัส</button>
+      </div>
+      <div class="stat-list" id="stat-list"></div>
+    </div>
+
+    <!-- Step 2: starter card -->
+    <div id="draft-step2" style="display:none">
+      <div class="draft-step">เลือกการ์ดเริ่มต้น 1 ใบเข้าเด็ค</div>
+      <div class="draft-hint">แล้วเลือก ✨ พร ต่อ (สุ่มตาม seed)</div>
+      <div class="draft-grid" id="draft-startcards"></div>
+    </div>
+
+    <button class="btn btn-gold" id="draft-next">ถัดไป → เลือกการ์ด</button>
+    <div class="draft-wait" id="draft-wait" style="display:none">✅ เสร็จแล้ว — รออีกฝ่าย...</div>
+  </div>
+
+  <!-- How to play modal -->
+  <div class="dm-overlay" id="howto-modal">
+    <div class="dm-box">
+      <div class="dm-title">📜 วิธีเล่น</div>
+      <div class="ht-body">
+        <div class="ht-sec"><h3>🎯 เป้าหมาย</h3>
+          <p><b>ไปให้ไกลที่สุด!</b> หอคอยไม่มีเพดาน — ยิ่งไต่สูงยิ่งโหด ทุกคนไต่จนตาย <b>คนที่ไปถึงชั้นสูงสุดชนะ</b> ล้มบอสทุก 10 ชั้น (21, 31, ...) เลือดหมด = ตกรอบ (แต่ยังเป็นผีแกล้งคนอื่นได้)</p></div>
+        <div class="ht-sec"><h3>🚪 เริ่มเกม</h3>
+          <p>สร้างห้องแล้วส่ง <b>รหัส 4 ตัว</b> ให้เพื่อน (2–8 คน) ทุกคนกด "พร้อม" แล้วหัวห้อง 👑 กดเริ่ม ทุกคนเจอศัตรูชุดเดียวกันจาก seed เดียวกัน — แฟร์ 100%</p></div>
+        <div class="ht-sec"><h3>⚒️ สร้างนักรบ (2 นาที)</h3>
+          <p>เลือกการ์ดเริ่มต้น 1 ใบ → เลือก <b>✨ พร (Boon)</b> 1 อย่าง จากชุดที่ <b>สุ่มตาม seed</b> (ทุกเกมต่างกัน) — พรคือตัวกำหนด build เช่น +ดาเมจ, +มานา, "หมัดที่ 3 ×2" · <b>ได้พรเพิ่มทุก 5 ชั้น + บอสให้พรหายาก ★</b> build จะค่อยๆ ก่อตัวระหว่างไต่</p></div>
+        <div class="ht-sec"><h3>⚔️ ในสนามรบ</h3>
+          <p>• แตะการ์ดเพื่อเล่น — ใช้มานา 💎 (ได้ 3/เทิร์น)<br>
+          • ศัตรู<b>บอกล่วงหน้า</b>ว่าเทิร์นหน้าจะทำอะไร (ป้ายเหนือหัว) — วางแผนตามนั้น!<br>
+          • 🛡️ บล็อกกันดาเมจ แต่<b>หายตอนจบเทิร์น</b><br>
+          • กด "จบเทิร์น" แล้วศัตรูจะตอบโต้ • มีเวลา 45 วิ/เทิร์น</p></div>
+        <div class="ht-sec"><h3>🔥 สถานะที่ควรรู้</h3>
+          <p>🔥 ไฟ = ดาเมจทุกเทิร์น ลดทีละ 1 • ☠️ พิษ = คล้ายไฟ • 💣 ระเบิดเวลา = ครบกำหนดบึ้ม • 🌵 หนาม = สะท้อนใส่คนตี</p></div>
+        <div class="ht-sec"><h3>🏆 ชนะศึกแล้วได้อะไร</h3>
+          <p>ขึ้นชั้น + เครดิต 💳 + เลือกการ์ดใหม่เข้าเด็ค 1 ใบ (อยู่ติดตัวทั้งเกม) — ชนะไวใน 4 เทิร์นได้โบนัส ⚡ ลุ้นเจอการ์ดตำนาน 🌟 ด้วย</p></div>
+        <div class="ht-sec"><h3>🚪 ประตูทางเลือก</h3>
+          <p>บางชั้นมีทางพิเศษ: <b>💀 Elite</b> ศัตรูโหดขึ้น แลกรางวัล ×2 + การ์ดตำนาน + <b>เลือกพร</b> • <b>🔥 จุดพัก</b> เลือกได้ 1 อย่าง — <b>⛺ ฟื้น 30% HP</b> หรือ <b>🔨 ลับดาบ</b> (อัปเกรดการ์ด 1 ใบถาวรให้แรงขึ้น) — ทุกคนเจอชุดเดียวกัน</p></div>
+        <div class="ht-sec"><h3>🌩️ หมอกมรณะ</h3>
+          <p>ตามหลังผู้นำเกิน <b>5 ชั้น</b> จะโดนดูดเลือด 2 ทุก 5 วินาที — อย่าดองนาน รีบไต่!</p></div>
+        <div class="ht-sec"><h3>🕯️ ร้านค้ามืด (4 หมวด)</h3>
+          <p><b>🗡️ กดศึก</b> สาป/ทุบโล่/บัฟศัตรู • <b>⏱️ ถ่วงจังหวะ</b> ตัดจั่ว/แช่มานา/บีบเวลา/ขโมยเงิน/ผลักตกชั้น • <b>👁️ ก่อกวนจอ</b> ควันบัง จอกลับหัว เมาหมัด ฝูงค้างคาว • <b>💊 ตัวเอง</b> ยาฟื้น ตัดการ์ด และ <b>🔮 หินคุ้มภัย</b> กันการแกล้ง 1 ครั้ง — ซื้อกันไว้ก่อนโดนก็ได้ 😈</p></div>
+      </div>
+      <button class="btn btn-gold" id="howto-close">เข้าใจแล้ว ลุย! ⚔️</button>
+    </div>
+  </div>
+
+  <!-- Practice: เลือกความยากบอท AI -->
+  <div class="dm-overlay" id="practice-modal">
+    <div class="dm-box">
+      <div class="dm-title">🎯 โหมดซ้อม — แข่งกับบอท AI</div>
+      <div class="dm-credit">บอทไต่แข่งกับคุณจริงๆ ตกรอบได้ แกล้งเป็น — ใครไปไกลสุดชนะ</div>
+      <div class="dm-items">
+        <div class="relic-opt" data-diff="easy" style="border-color:#4ad07a">
+          <span class="r-ic">🐣</span>
+          <div style="flex:1"><div class="r-nm">Easy</div><div class="r-ds">บอท 2 ตัว ไต่ช้า ตายไว · ไม่แกล้ง — เหมาะหัดเล่น</div></div>
+        </div>
+        <div class="relic-opt" data-diff="normal" style="border-color:#3ca0ff">
+          <span class="r-ic">⚔️</span>
+          <div style="flex:1"><div class="r-nm">Normal</div><div class="r-ds">บอท 3 ตัว ระดับผู้เล่นทั่วไป · แกล้งนานๆ ครั้ง</div></div>
+        </div>
+        <div class="relic-opt" data-diff="hard" style="border-color:#ff8a3c">
+          <span class="r-ic">🔥</span>
+          <div style="flex:1"><div class="r-nm">Hard</div><div class="r-ds">บอท 3 ตัว ไต่ไว ไปลึก · แกล้งเป็นประจำ</div></div>
+        </div>
+        <div class="relic-opt" data-diff="nightmare" style="border-color:#e02040;box-shadow:0 0 14px rgba(224,32,64,.4)">
+          <span class="r-ic">💀</span>
+          <div style="flex:1"><div class="r-nm">Nightmare</div><div class="r-ds">บอทปีศาจ ไต่ทะลุชั้น 30+ · แกล้งรัว ขโมยเงินด้วย</div></div>
+        </div>
+      </div>
+      <button class="btn btn-dim" id="practice-cancel" style="margin-top:10px">ยกเลิก</button>
+    </div>
+  </div>
+
+  <!-- Rest node: เลือกฟื้น/อัปเกรด -->
+  <div class="dm-overlay" id="rest-modal">
+    <div class="dm-box">
+      <div class="dm-title">🔥 จุดพักผ่อน</div>
+      <div class="dm-credit">เลือก 1 อย่าง — <span style="color:var(--purple-br)">❤️ <b id="rest-hp">0/0</b></span></div>
+      <div class="hptrack" style="margin-bottom:14px"><div class="hpfill" id="rest-hpfill" style="width:100%;background:linear-gradient(90deg,#2a6acc,#5db0ff)"></div></div>
+      <div class="rest-choice" id="rest-rest">
+        <div class="rest-ic">⛺</div>
+        <div><div class="rest-t" style="color:#7de0b0">พักผ่อน</div><div class="rest-d">ฟื้น <b id="rest-heal-amt" style="color:#5dcaa5">+0</b> HP (30%)</div></div>
+      </div>
+      <div class="rest-choice" id="rest-upgrade" style="border-color:#7a5a20">
+        <div class="rest-ic">🔨</div>
+        <div><div class="rest-t" style="color:var(--gold-br)">ลับดาบ</div><div class="rest-d">อัปเกรดการ์ด 1 ใบถาวร</div></div>
+      </div>
+      <button class="btn btn-dim" id="rest-skip" style="margin-top:12px">เดินหน้าต่อ (ไม่เอา)</button>
+    </div>
+  </div>
+
+  <!-- Upgrade card picker -->
+  <div class="dm-overlay" id="upgrade-modal">
+    <div class="dm-box">
+      <div class="dm-title">🔨 เลือกการ์ดอัปเกรด</div>
+      <div class="dm-credit">แรงขึ้นถาวรทั้งเกม 1 ใบ</div>
+      <div class="ht-body" id="upgrade-list"></div>
+      <button class="btn btn-dim" id="upgrade-cancel">ยกเลิก</button>
+    </div>
+  </div>
+
+  <!-- Relic picker (draft + Elite reward) -->
+  <div class="dm-overlay" id="relic-modal">
+    <div class="dm-box">
+      <div class="dm-title">✨ เลือกพร (Boon)</div>
+      <div class="dm-credit" id="relic-sub">passive ติดตัวทั้งเกม — เลือก 1</div>
+      <div class="dm-items" id="relic-list"></div>
+    </div>
+  </div>
+
+  <!-- My deck modal (ดูเด็ค / โหมดลบการ์ด) -->
+  <div class="dm-overlay" id="deck-modal">
+    <div class="dm-box">
+      <div class="dm-title">🎴 เด็คของฉัน (<span id="deck-count">0</span> ใบ)</div>
+      <div class="dm-msg" id="deck-msg"></div>
+      <div class="ht-body" id="deck-body"></div>
+      <button class="btn btn-dim" id="deck-close">ปิด</button>
+    </div>
+  </div>
+
+  <!-- Card library modal -->
+  <div class="dm-overlay" id="cardlib-modal">
+    <div class="dm-box">
+      <div class="dm-title">🃏 คลังการ์ด &amp; ไอคอน</div>
+      <div class="ht-body" id="cardlib-body"></div>
+      <button class="btn btn-dim" id="cardlib-close">ปิด</button>
+    </div>
+  </div>
+
+  <!-- stat info modal -->
+  <div class="dm-overlay" id="stat-info-modal">
+    <div class="dm-box">
+      <div class="dm-title">📖 คำอธิบายสเตตัส</div>
+      <div class="stat-info-list" id="stat-info-list"></div>
+      <button class="btn btn-dim" id="stat-info-close">ปิด</button>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: CARD REWARD ===== -->
+  <div class="scr" id="scr-reward">
+    <div class="draft-head">
+      <div class="draft-title">🎁 ผ่านชั้น <span id="reward-floor">1</span>!</div>
+    </div>
+    <div class="draft-step">เลือกการ์ด 1 ใบเข้าเด็ค</div>
+    <div class="draft-hint">การ์ดที่เลือกจะอยู่ในเด็คตลอดการแข่ง</div>
+    <div class="draft-grid" id="reward-cards"></div>
+    <button class="btn btn-dim" id="reward-skip" style="margin-top:14px">ข้าม (ไม่เอาการ์ด)</button>
+  </div>
+
+  <!-- ===== SCREEN: RACE ===== -->
+  <div class="scr" id="scr-race">
+    <div class="storm-warn" id="storm-warn">⚠️ หมอกมรณะกำลังกลืนกิน! รีบไต่ตามให้ทัน! <span class="storm-drain">ดูดเลือดทุก 5 วิ</span></div>
+    <div class="topbar">
+      <button class="back-link" id="btn-leave-race">← ออก</button>
+      <button class="back-link" id="btn-howto-race">📜 วิธีเล่น</button>
+      <button class="back-link" id="btn-sfx">🔊</button>
+      <span class="race-head">
+        <span class="rc">ห้อง <b id="race-code">----</b></span>
+        <span class="seed-tag" id="race-seed"></span>
+      </span>
+    </div>
+
+    <!-- compact scoreboard: ผู้เล่นทุกคน (BR) -->
+    <div class="scoreboard" id="scoreboard"></div>
+
+    <!-- my big status -->
+    <div class="my-status">
+      <div class="my-floor">🗼 ชั้นของคุณ: <b id="my-floor-big">0</b> <span style="margin-left:12px">💳 เครดิต: <b id="my-gold" style="color:var(--gold)">0</b></span> <span id="ward-chip" style="margin-left:10px;color:#c89aff"></span></div>
+      <div class="relic-strip" id="relic-strip"></div>
+      <div class="hpwrap me" style="margin-top:6px">
+        <div class="hl"><span id="me-name">คุณ</span><span id="me-hp-txt">100/100</span></div>
+        <div class="hptrack"><div class="hpfill" id="me-hp-fill" style="width:100%"></div></div>
+      </div>
+    </div>
+
+    <div class="sim-controls" style="border-style:solid;border-color:var(--gold)">
+      <div class="lbl" style="color:var(--gold)">⚔️ ชั้นถัดไป: <b id="next-floor">1</b> — ศัตรูสุ่มจาก seed เดียวกัน (mirror)</div>
+      <div class="sim-row">
+        <button class="btn btn-gold" id="btn-fight">⚔️ เข้าต่อสู้ชั้น <span id="fight-floor">1</span></button>
+      </div>
+      <button class="btn btn-dim" id="btn-elite" style="margin-top:8px;border-color:#a03040;color:#ff8898;display:none">💀 ห้อง Elite</button>
+      <button class="btn btn-dim" id="btn-rest" style="margin-top:8px;border-color:#2a6a4a;color:#7de0b0;display:none">⛺ จุดพัก</button>
+      <button class="btn btn-dim" id="btn-darkmarket" style="margin-top:8px">🕯️ ร้านค้ามืด (ซื้อของแกล้ง)</button>
+      <button class="btn btn-dim" id="btn-bag" style="margin-top:8px">🎒 กระเป๋า (ใช้ของแกล้ง) <span id="bag-count"></span></button>
+      <button class="btn btn-dim" id="btn-mydeck" style="margin-top:8px">🎴 เด็คของฉัน</button>
+      <button class="btn btn-dim" id="btn-cardlib-race" style="margin-top:8px">🃏 คลังการ์ด &amp; ไอคอน</button>
+    </div>
+
+    <div class="status-line" id="race-status"><span class="conn" id="race-conn"></span><span id="race-conn-txt">sync ทำงาน</span></div>
+    <div class="hint" id="seed-proof"></div>
+  </div>
+
+  <!-- ===== Dark Market modal (ซื้อเก็บกระเป๋า) ===== -->
+  <div class="dm-overlay" id="dm-modal">
+    <div class="dm-box">
+      <div class="dm-title">🕯️ ร้านค้ามืด</div>
+      <div class="dm-credit">💳 เครดิตของคุณ: <b id="dm-credit">0</b></div>
+      <div class="dm-items" id="dm-items"></div>
+      <div class="dm-msg" id="dm-msg"></div>
+      <button class="btn btn-dim" id="dm-close">ปิด</button>
+    </div>
+  </div>
+
+  <!-- ===== Bag modal (เปิดกระเป๋าใช้ของแกล้ง) ===== -->
+  <div class="dm-overlay" id="bag-modal">
+    <div class="dm-box">
+      <div class="dm-title">🎒 กระเป๋าของแกล้ง</div>
+      <div class="dm-target-row">
+        <label>เป้าหมาย:</label>
+        <select id="bag-target"></select>
+      </div>
+      <div class="dm-items" id="bag-items"></div>
+      <div class="dm-msg" id="bag-msg"></div>
+      <button class="btn btn-dim" id="bag-close">ปิด</button>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: BATTLE ===== -->
+  <div class="scr" id="scr-battle">
+    <div class="topbar">
+      <span class="rc">⚔️ ชั้น <b id="bt-floor">1</b></span>
+      <span class="bt-timer" id="bt-timer">⏱️ 45วิ</span>
+      <span class="seed-tag" id="bt-turn">เทิร์น 1</span>
+    </div>
+
+    <!-- enemy -->
+    <div class="bt-enemy">
+      <div class="bt-intent" id="bt-intent">⚔️ โจมตี 6</div>
+      <div class="bt-spr" id="bt-spr">🟢</div>
+      <div class="bt-ename" id="bt-ename">Slime</div>
+      <div class="bt-ehp-track"><div class="bt-ehp-fill" id="bt-ehp-fill"></div><span class="bt-ehp-txt" id="bt-ehp-txt">30/30</span></div>
+      <div class="bt-estatus" id="bt-estatus"></div>
+    </div>
+
+    <div class="bt-log" id="bt-log"></div>
+
+    <!-- player stats -->
+    <div class="bt-pstats">
+      <span>❤️ <b id="bt-php">100</b></span>
+      <span>🛡️ <b id="bt-block">0</b></span>
+      <span>💎 <b id="bt-mana">3</b>/<span id="bt-maxmana">3</span></span>
+      <span id="bt-deckchip" style="cursor:pointer" title="ดูเด็ค">📚 <b id="bt-deck">0</b>·🗑️ <b id="bt-disc">0</b></span>
+    </div>
+
+    <!-- hand -->
+    <div class="bt-hand" id="bt-hand"></div>
+
+    <button class="btn btn-purple" id="bt-endturn">จบเทิร์น ⏭️</button>
+  </div>
+
+  <!-- ===== SCREEN: END ===== -->
+  <div class="scr" id="scr-end">
+    <div class="end-wrap">
+      <div class="end-result" id="end-result">—</div>
+      <div class="end-sub" id="end-sub"></div>
+      <div class="end-detail" id="end-detail"></div>
+      <button class="btn btn-gold" id="btn-rematch">🔁 เล่นอีกรอบ (ห้องเดิม)</button>
+      <button class="btn btn-dim" id="btn-exit-room">🚪 ออกจากห้อง</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ========== STATE ========== */
+const MAX_PLAYERS=8;
+let ME={ id:null, name:'', floor:0, maxFloor:0, hp:100, maxHp:100, ready:false, gold:0 };
+let PRACTICE=false;   // โหมดซ้อมคนเดียว — ไม่แตะ Firebase ไม่บันทึกสถิติ
+let RIVALS=[];           // all other players (BR)
+let ALL_PLAYERS={};      // raw players map from RTDB
+let ROOM={ code:null, ref:null, seed:null, isHost:false };
+let _roomListener=null, _hbTimer=null;
+
+const $=id=>document.getElementById(id);
+function showScr(id){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+// popup แจ้งเตือนลอยสั้นๆ (ใช้กับ sabotage + reward)
+function toast(msg){
+  let box=$('toast-box');
+  if(!box){
+    box=document.createElement('div');
+    box.id='toast-box';
+    document.body.appendChild(box);
+  }
+  const t=document.createElement('div');
+  t.className='toast-item';
+  t.textContent=msg;
+  box.appendChild(t);
+  setTimeout(()=>{ t.classList.add('out'); setTimeout(()=>t.remove(),300); }, 2600);
+}
+/* ========== SFX — สังเคราะห์เสียงด้วย WebAudio ไม่ใช้ไฟล์ ========== */
+let _actx=null, _sfxOn=localStorage.getItem('ct_pvp_sfx')!=='0';
+function sfxCtx(){
+  if(!_actx){ try{ _actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  return _actx;
+}
+// ปลุก AudioContext ด้วย gesture แรก (นโยบาย autoplay ของเบราว์เซอร์)
+document.addEventListener('pointerdown',()=>{ const c=sfxCtx(); if(c&&c.state==='suspended')c.resume(); });
+function tone(freq,dur,type,vol,when,slide){
+  const ctx=sfxCtx(); if(!ctx||!_sfxOn)return;
+  const t=ctx.currentTime+(when||0);
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  o.type=type||'square';
+  o.frequency.setValueAtTime(freq,t);
+  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide), t+dur);
+  g.gain.setValueAtTime(vol||0.14,t);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t+dur+0.02);
+}
+const SFX={
+  hit(){ tone(170,0.1,'square',0.16,0,-90); tone(85,0.16,'sawtooth',0.12,0.02,-40); },
+  hurt(){ tone(120,0.22,'sawtooth',0.18,0,-70); if(navigator.vibrate)navigator.vibrate(50); },
+  block(){ tone(290,0.07,'triangle',0.14); tone(430,0.09,'triangle',0.11,0.06); },
+  heal(){ tone(520,0.11,'sine',0.13); tone(680,0.13,'sine',0.11,0.09); },
+  win(){ [523,659,784,1046].forEach((f,i)=>tone(f,0.2,'triangle',0.14,i*0.13)); },
+  lose(){ [330,262,196].forEach((f,i)=>tone(f,0.3,'sawtooth',0.11,i*0.2,-40)); },
+  legend(){ [660,880,1175].forEach((f,i)=>tone(f,0.16,'sine',0.13,i*0.1)); },
+  sab(){ tone(210,0.18,'sawtooth',0.15,0,-130); tone(150,0.24,'sawtooth',0.11,0.12,-80); },
+};
+function toggleSfx(){
+  _sfxOn=!_sfxOn;
+  localStorage.setItem('ct_pvp_sfx',_sfxOn?'1':'0');
+  const b=$('btn-sfx'); if(b)b.textContent=_sfxOn?'🔊':'🔇';
+  if(_sfxOn) SFX.block();
+}
+
+function genRoomCode(){
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s='';for(let i=0;i<4;i++)s+=c[Math.floor(Math.random()*c.length)];
+  return s;
+}
+function myId(){
+  let id=localStorage.getItem('ct_pvp_id');
+  if(!id){ id='p'+Math.random().toString(36).slice(2,10); localStorage.setItem('ct_pvp_id',id); }
+  return id;
+}
+
+/* ========== PROFILE ถาวร (สถิติ + ฉายา — รางวัลเกียรติยศ ไม่ใช่พลังในเกม) ========== */
+let MY_PROFILE=null, _profileWritten=false;
+function titleFor(p){
+  if(!p) return '';
+  if((p.wins||0)>=25) return '👑 ราชันย์หอคอย';
+  if((p.maxFloor||0)>=21) return '🗼 ผู้ถึงยอด';
+  if((p.wins||0)>=10) return '🔥 ผู้พิชิต';
+  if((p.wins||0)>=3) return '⚔️ นักสู้';
+  if((p.games||0)>=1) return '🐣 มือใหม่';
+  return '';
+}
+function loadMyProfile(){
+  if(!rtdb) return;
+  rtdb.ref('profiles/'+myId()).get().then(s=>{
+    MY_PROFILE=s.val()||{games:0,wins:0,maxFloor:0,streak:0,bestStreak:0};
+    renderHomeStats();
+  }).catch(()=>{});
+}
+function renderHomeStats(){
+  const el=$('home-stats'); if(!el)return;
+  const p=MY_PROFILE;
+  el.classList.add('on');
+  if(!p || !(p.games>0)){   // ผู้เล่นใหม่ — ชวนไปซ้อมก่อน
+    el.innerHTML='<div class="hp-title">🐣 นักผจญภัยหน้าใหม่</div>'
+      +'<div class="hp-chips"><span class="hp-chip">ลอง 🎯 โหมดซ้อม ก่อนลุยจริงได้เลย</span></div>';
+    return;
+  }
+  const t=titleFor(p)||'🐣 มือใหม่';
+  el.innerHTML=`<div class="hp-title">${t}</div>
+    <div class="hp-chips">
+      <span class="hp-chip">🏆 ชนะ <b>${p.wins||0}</b></span>
+      <span class="hp-chip">🎮 เล่น <b>${p.games||0}</b></span>
+      <span class="hp-chip">🗼 สูงสุด <b>${p.maxFloor||0}</b></span>
+      ${(p.streak||0)>=2?`<span class="hp-chip">🔥 ชนะติด <b>${p.streak}</b></span>`:''}
+    </div>`;
+}
+function recordGameResult(iWon){
+  if(_profileWritten || !rtdb) return;   // เขียนครั้งเดียวต่อเกม
+  _profileWritten=true;
+  const p=MY_PROFILE||{games:0,wins:0,maxFloor:0,streak:0,bestStreak:0};
+  p.games=(p.games||0)+1;
+  if(iWon){ p.wins=(p.wins||0)+1; p.streak=(p.streak||0)+1; p.bestStreak=Math.max(p.bestStreak||0,p.streak); }
+  else p.streak=0;
+  p.maxFloor=Math.max(p.maxFloor||0, ME.maxFloor||ME.floor||0);
+  p.name=ME.name; p.updatedAt=Date.now();
+  MY_PROFILE=p;
+  rtdb.ref('profiles/'+myId()).set(p).catch(()=>{});
+  renderHomeStats();
+}
+
+/* ===== เซฟเด็ค/กระเป๋าลงเครื่อง — ให้ rejoin กลางเกมได้เด็คเดิมคืน ===== */
+function persistLoadout(){
+  if(!ROOM.code)return;
+  try{
+    localStorage.setItem('ct_pvp_loadout_'+ROOM.code,
+      JSON.stringify({gameId:DRAFT._gameId||null, loadout:MY_LOADOUT, inv:MY_INVENTORY}));
+  }catch(e){}
+}
+function restoreLoadout(code, gameId){
+  try{
+    const sv=JSON.parse(localStorage.getItem('ct_pvp_loadout_'+code)||'null');
+    if(sv && sv.gameId===gameId && sv.loadout){
+      MY_LOADOUT=sv.loadout;
+      MY_LOADOUT.boons=MY_LOADOUT.boons||[];
+      MY_LOADOUT.upgrades=MY_LOADOUT.upgrades||[];
+      MY_LOADOUT.removed=MY_LOADOUT.removed||[];
+      MY_LOADOUT.ward=MY_LOADOUT.ward||0;
+      MY_INVENTORY=sv.inv||{};
+    }
+  }catch(e){}
+}
+
+/* ========== CREATE / JOIN ========== */
+function createRoom(){
+  const name=($('name-create').value||'').trim().slice(0,16);
+  if(!name){ $('home-err').textContent='ใส่ชื่อก่อนนะ'; return; }
+  if(!rtdb){ $('home-err').textContent='เชื่อมต่อ Firebase ไม่ได้'; return; }
+  localStorage.setItem('ct_pvp_name',name);
+  const code=genRoomCode();
+  const seed=Math.floor(Math.random()*2147483647);
+  ME={ id:myId(), name, floor:0, hp:100, maxHp:100, ready:false, gold:0 };
+  ROOM={ code, ref:rtdb.ref('rooms/'+code), seed, isHost:true };
+
+  ROOM.ref.set({
+    status:'lobby',
+    sharedSeed:seed,
+    createdAt:firebase.database.ServerValue.TIMESTAMP,
+    players:{
+      [ME.id]:{ name:ME.name, floor:0, maxFloor:0, hp:100, maxHp:100, ready:false, host:true,
+                title:titleFor(MY_PROFILE),
+                lastHeartbeat:firebase.database.ServerValue.TIMESTAMP }
+    }
+  }).then(()=>{
+    enterLobby();
+  }).catch(e=>{ $('home-err').textContent='สร้างห้องไม่สำเร็จ: '+e.message; });
+}
+
+function joinRoom(){
+  const name=($('name-join').value||'').trim().slice(0,16);
+  const code=($('room-join').value||'').trim().toUpperCase();
+  if(!name){ $('home-err').textContent='ใส่ชื่อก่อนนะ'; return; }
+  if(code.length!==4){ $('home-err').textContent='รหัสห้องต้อง 4 ตัว'; return; }
+  if(!rtdb){ $('home-err').textContent='เชื่อมต่อ Firebase ไม่ได้'; return; }
+  localStorage.setItem('ct_pvp_name',name);
+  const ref=rtdb.ref('rooms/'+code);
+  ref.get().then(snap=>{
+    if(!snap.exists()){ $('home-err').textContent='ไม่พบห้องนี้'; return; }
+    const data=snap.val();
+    const players=data.players||{};
+    const count=Object.keys(players).length;
+    // allow rejoin if already in room
+    const existing=players[myId()];
+    if(count>=MAX_PLAYERS && !existing){ $('home-err').textContent='ห้องเต็มแล้ว ('+MAX_PLAYERS+' คน)'; return; }
+    ME={ id:myId(), name, floor:0, maxFloor:0, hp:100, maxHp:100, ready:false, gold:0 };
+    ROOM={ code, ref, seed:data.sharedSeed, isHost:!!(existing&&existing.host) };
+    if(existing){
+      // rejoin กลางเกม — กู้ค่าเดิมทั้งหมด ห้าม set ทับ (กัน exploit รีเฟรชแล้วฟื้นเลือดเต็ม/รีเซ็ตชั้น)
+      ME.floor=existing.floor||0;
+      ME.maxFloor=Math.max(existing.maxFloor||0, existing.floor||0);
+      ME.hp=existing.hp!=null?existing.hp:100;
+      ME.maxHp=existing.maxHp||100;
+      ME.gold=existing.gold||0;
+      ME.ready=!!existing.ready;
+      if(existing.draftDone){ DRAFT._done=true; DRAFT._gameId=data.startTime||null; }
+      restoreLoadout(code, data.startTime||null);   // กู้เด็ค/กระเป๋าที่เซฟไว้ในเครื่อง
+      ref.child('players/'+ME.id).update({
+        name:ME.name, title:titleFor(MY_PROFILE),
+        lastHeartbeat:firebase.database.ServerValue.TIMESTAMP
+      }).then(()=>enterLobby());
+      return;
+    }
+    ref.child('players/'+ME.id).set({
+      name:ME.name, floor:0, maxFloor:0, hp:100, maxHp:100, ready:false, host:false,
+      title:titleFor(MY_PROFILE),
+      lastHeartbeat:firebase.database.ServerValue.TIMESTAMP
+    }).then(()=>enterLobby());
+  }).catch(e=>{ $('home-err').textContent='เข้าห้องไม่สำเร็จ: '+e.message; });
+}
+
+/* ========== LOBBY ========== */
+function enterLobby(){
+  $('lobby-code').textContent=ROOM.code;
+  showScr('scr-lobby');
+  attachRoomListener();
+  startHeartbeat();
+  listenMySabotage();
+  listenFeed();
+  // auto-leave cleanup if tab closes
+  ROOM.ref.child('players/'+ME.id).onDisconnect().remove();
+}
+
+function attachRoomListener(){
+  if(_roomListener) ROOM.ref.off('value',_roomListener);
+  _roomListener=ROOM.ref.on('value',snap=>{
+    if(!snap.exists()){ // room gone
+      if(!ROOM._finished) alert('ห้องถูกปิดแล้ว');   // จบเกมแล้วห้องโดนลบ = ปกติ ไม่ต้องเด้งเตือน
+      leaveToHome(); return;
+    }
+    const data=snap.val();
+    ROOM.seed=data.sharedSeed;
+    const players=data.players||{};
+    // build rivals list (everyone except me) + keep raw players
+    ALL_PLAYERS=players;
+    RIVALS=[];
+    Object.keys(players).forEach(pid=>{
+      if(pid!==ME.id){
+        const r=players[pid];
+        RIVALS.push({
+          id:pid, name:r.name||'?', floor:r.floor||0, maxFloor:Math.max(r.maxFloor||0,r.floor||0),
+          hp:r.hp!=null?r.hp:100, maxHp:r.maxHp||100,
+          gold:r.gold||0, title:r.title||'',
+          ready:!!r.ready, dead:(r.hp!=null && r.hp<=0),
+          offline:!isFresh(r)
+        });
+      }
+    });
+    // my own ready (in case of multi-device)
+    if(players[ME.id]) ME.ready=!!players[ME.id].ready;
+
+    // ===== END GAME already decided by someone =====
+    if(data.status==='finished'){
+      showEndScreen(data.winner, data.reason);
+      return;
+    }
+    // ===== REMATCH: ห้องถูกรีเซ็ตกลับ lobby หลังจบเกม =====
+    if(ROOM._finished && data.status==='lobby'){
+      resetForRematch();
+    }
+
+    renderLobby(players);
+    // ===== DRAFT phase =====
+    if(data.status==='drafting'){
+      // ตรวจ "เกมใหม่" จาก startTime — ถ้าเปลี่ยน = เกมรอบใหม่ → รีเซ็ต draft เก่า
+      if(data.startTime && DRAFT._gameId !== data.startTime){
+        DRAFT._gameId = data.startTime;
+        DRAFT._done = false; DRAFT.active = false;
+        _profileWritten = false;   // เกมใหม่ — เปิดให้บันทึกสถิติรอบนี้ได้
+      }
+      // ยังไม่เคยเข้า draft ในเกมนี้ → เข้า
+      if(!DRAFT._done && !$('scr-draft').classList.contains('active')) enterDraft();
+      // เช็คว่าทุกคนเสร็จยัง → เปลี่ยนเป็น playing (ใครก็ได้ trigger ได้)
+      const ids=Object.keys(players);
+      const allDone = ids.length>=2 && ids.every(id=>players[id].draftDone===true);
+      if(allDone){
+        ROOM.ref.child('status').get().then(s=>{
+          if(s.val()==='drafting') ROOM.ref.update({ status:'playing' });
+        });
+      }
+      return;
+    }
+    // transition to race when both ready & status playing
+    if(data.status==='playing'){
+      const inBattle=$('scr-battle').classList.contains('active');
+      const inEnd=$('scr-end').classList.contains('active');
+      const inReward=$('scr-reward').classList.contains('active');
+      // draft จบแล้วเมื่อ playing — ออกจากจอ draft ไป race ได้
+      // อย่าลากกลับจอ race ถ้ากำลังสู้/เลือกการ์ด/จบเกม
+      if(!inBattle && !inEnd && !inReward){
+        if(!$('scr-race').classList.contains('active')){ stopDraftTimer(); enterRace(); }
+        renderRace();
+      } else {
+        updateNextFloorUI();
+      }
+      checkWinConditions(data, players);
+    } else {
+      if(!$('scr-battle').classList.contains('active') && !$('scr-reward').classList.contains('active') && !$('scr-draft').classList.contains('active')) renderRace();
+    }
+    // (host เริ่มเกมด้วยปุ่ม hostStartGame — ไม่ auto แล้ว)
+  });
+}
+
+/* ========== WIN CONDITIONS (Battle Royale) ========== */
+// ผู้เล่น "สด" = heartbeat ไม่ขาดเกิน 2 นาที (กัน zombie ค้างบล็อกการจบเกม
+// เกณฑ์หลวมเพราะ browser throttle timer ตอนแท็บอยู่เบื้องหลัง)
+const STALE_MS=120000;
+function isFresh(p){ return !p.lastHeartbeat || (Date.now()-p.lastHeartbeat) < STALE_MS; }
+function pMaxFloor(p){ return Math.max(p.maxFloor||0, p.floor||0); }
+function checkWinConditions(data, players){
+  if(data._ending) return;
+  const ids=Object.keys(players);
+  if(ids.length<2) return;
+  // FURTHEST WINS — จบเมื่อเหลือคนรอด ≤1 (ที่เหลือตาย/หลุด) → คนไปได้ไกลสุด (ชั้นสูงสุด) ชนะ
+  const alive = ids.filter(id => (players[id].hp!=null?players[id].hp:100) > 0 && isFresh(players[id]));
+  if(alive.length<=1){
+    let best=ids[0];
+    ids.forEach(id=>{
+      const f=pMaxFloor(players[id]), bf=pMaxFloor(players[best]);
+      if(f>bf || (f===bf && (players[id].hp||0)>(players[best].hp||0))) best=id;
+    });
+    declareEnd(best, 'furthest');
+  }
+}
+
+function declareEnd(winnerId, reason){
+  if(!ROOM.ref) return;
+  // transaction เดียว — หลายเครื่องเห็นเงื่อนไขจบพร้อมกัน คนแรกที่เขียนสำเร็จเท่านั้นที่ประกาศผล
+  ROOM.ref.transaction(cur=>{
+    if(!cur) return cur;                    // ห้องหายไปแล้ว
+    if(cur.status==='finished') return;     // มีคนประกาศไปแล้ว — ยกเลิกของเรา
+    cur.status='finished';
+    cur.winner=winnerId;
+    cur.reason=reason;
+    cur.endedAt=Date.now();
+    return cur;
+  });
+}
+
+let _roomCleanupTimer=null;
+function showEndScreen(winnerId, reason){
+  if($('scr-end').classList.contains('active')) return;   // listener ยิงซ้ำระหว่างจบเกม — เรนเดอร์ครั้งเดียวพอ
+  ROOM._finished=true;
+  stopHeartbeat();
+  stopVoidStorm();
+  stopTurnTimer();
+  stopPracticeBots();
+  // ลบห้องทิ้งถ้าจบแล้วไม่มีใครกด rematch ใน 5 นาที (กันข้อมูลค้างสะสมใน Firebase)
+  if(!_roomCleanupTimer) _roomCleanupTimer=setTimeout(()=>{
+    if(ROOM.ref && ROOM._finished) ROOM.ref.remove().catch(()=>{});
+  }, 300000);
+  // ปุ่มเล่นอีกรอบ — host เท่านั้นที่กดรีเซ็ตห้องได้ (โหมดซ้อมไม่มี rematch)
+  const rb=$('btn-rematch');
+  if(rb){
+    if(PRACTICE){ rb.style.display='none'; }
+    else if(ROOM.isHost){ rb.style.display='block'; rb.disabled=false; rb.textContent='🔁 เล่นอีกรอบ (ห้องเดิม)'; }
+    else { rb.style.display='block'; rb.disabled=true; rb.textContent='รอหัวห้องเริ่มรอบใหม่... 👑'; }
+  }
+  const iWon = winnerId===ME.id;
+  if(iWon){ burstConfetti(); SFX.win(); } else SFX.lose();
+  recordGameResult(iWon);   // บันทึกสถิติถาวร (ชนะ/แพ้/ชั้นสูงสุด/สตรีค — โหมดซ้อมถูกกันไว้แล้ว)
+  const winnerName = winnerId===ME.id ? ME.name
+    : (RIVALS.find(r=>r.id===winnerId)||{}).name
+    || (ALL_PLAYERS[winnerId]||{}).name || 'ใครบางคน';
+  // สรุปทุกคน เรียงตาม "ชั้นสูงสุดที่ไปถึง" (furthest wins)
+  const srcIds = Object.keys(ALL_PLAYERS||{});
+  const ids = srcIds.length ? srcIds : [ME.id].concat(RIVALS.map(r=>r.id));
+  const everyone = ids.map(id=>{
+    const isMe = id===ME.id;
+    const p = ALL_PLAYERS[id] || {};
+    return {
+      id, me:isMe,
+      name: isMe?ME.name:(p.name||'?'),
+      maxFloor: isMe?Math.max(ME.maxFloor||0,ME.floor||0):Math.max(p.maxFloor||0,p.floor||0),
+      hp: isMe?ME.hp:(p.hp!=null?p.hp:100),
+      offline: !isMe && !isFresh(p),
+    };
+  });
+  everyone.sort((a,b)=>b.maxFloor-a.maxFloor || b.hp-a.hp);
+  const topMax = Math.max(1, everyone[0]?everyone[0].maxFloor:1);
+  const winnerMax = (everyone.find(p=>p.id===winnerId)||{}).maxFloor||0;
+  const reasonTxt={
+    furthest: iWon?(PRACTICE?`ชนะบอท! คุณไปไกลสุด — ชั้น ${winnerMax} 🎉`:'คุณไปได้ไกลที่สุด!'):`${winnerName} ไปได้ไกลสุด — ชั้น ${winnerMax}`,
+    practice_over: 'หอคอยเอาชนะคุณได้... ซ้อมใหม่อีกรอบ!',
+  }[reason]||'';
+  $('end-result').textContent=iWon?'VICTORY':'DEFEATED';
+  $('end-result').className='end-result '+(iWon?'win':'lose');
+  $('end-sub').textContent=reasonTxt;
+  $('end-detail').innerHTML=everyone.map((p,i)=>{
+    const win=p.id===winnerId;
+    let st, sc;
+    if(win){ st='👑 ผู้ชนะ'; sc='#ffd873'; }
+    else if(p.offline){ st='📴 หลุด'; sc='#8a7ab0'; }
+    else if(p.hp<=0){ st='💀 ร่วง'; sc='#c89090'; }
+    else { st='🛡️ รอด'; sc='#7de0b0'; }
+    if(p.maxFloor>=21 && !win) st='🏆 '+st;
+    const meTag=p.me?' (คุณ)':'';
+    const pct=Math.max(6,Math.round(p.maxFloor/topMax*100));
+    const barCol=win?'#d8a840':(p.me?'#4a9eff':'#5a4a80');
+    return `<div style="background:${win?'#241a0c':'#1a1330'};border:1px solid ${win?'#d8a840':'#3a2860'};border-radius:10px;padding:8px 10px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:.82em;margin-bottom:5px;">
+        <b style="color:${win?'#ffd873':'#b892ff'};min-width:22px;">#${i+1}</b>
+        <span style="flex:1;font-weight:600;color:${p.me?'#5db0ff':'#e6dcff'};">${(p.name||'?').replace(/[<>&]/g,'')}${meTag}</span>
+        <span style="font-size:.85em;color:${sc};">${st}</span>
+        <b style="color:${win?'#ffd873':'#b892ff'};min-width:30px;text-align:right;">🗼${p.maxFloor}</b>
+      </div>
+      <div style="height:5px;background:#2a1a3a;border-radius:3px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${barCol};"></div></div>
+    </div>`;
+  }).join('');
+  showScr('scr-end');
+}
+
+/* ===== REMATCH — host รีเซ็ตห้องกลับ lobby ทุกคนอยู่ต่อ ไม่ต้องตั้งห้องใหม่ ===== */
+function hostRematch(){
+  if(!ROOM.isHost||!ROOM.ref)return;
+  ROOM.ref.child('players').get().then(snap=>{
+    const players=snap.val()||{};
+    const updates={ status:'lobby', winner:null, reason:null, _ending:null, sabotageQueue:null, feed:null, startTime:null };
+    Object.keys(players).forEach(id=>{
+      updates['players/'+id+'/floor']=0;
+      updates['players/'+id+'/maxFloor']=0;
+      updates['players/'+id+'/hp']=100;
+      updates['players/'+id+'/maxHp']=100;
+      updates['players/'+id+'/gold']=0;
+      updates['players/'+id+'/ready']=false;
+      updates['players/'+id+'/draftDone']=false;
+    });
+    ROOM.ref.update(updates);
+  });
+}
+// เครื่องทุกคน: เห็นห้องกลับเป็น lobby หลังจบเกม → รีเซ็ต state ฝั่งตัวเอง
+function resetForRematch(){
+  ROOM._finished=false;
+  if(_roomCleanupTimer){ clearTimeout(_roomCleanupTimer); _roomCleanupTimer=null; }
+  ME.floor=0; ME.maxFloor=0; ME.hp=100; ME.maxHp=100; ME.gold=0; ME.ready=false; ME._ghostToast=false; ME._restedFloor=0;
+  MY_LOADOUT={ deck:[], removed:[], boons:[], upgrades:[], ward:0 };
+  MY_INVENTORY={};
+  PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false, web:false, freeze:false, slowTimer:false };
+  CUR_B=null;
+  stopVoidStorm(); stopTurnTimer();
+  startHeartbeat();   // จอจบเกมหยุด heartbeat ไว้ — เริ่มใหม่
+  toast('🔁 รอบใหม่เริ่มแล้ว! กดพร้อมได้เลย');
+  showScr('scr-lobby');
+}
+
+function renderLobby(players){
+  const box=$('lobby-players'); box.innerHTML='';
+  const ids=Object.keys(players);
+  ids.forEach(pid=>{
+    const p=players[pid];
+    const isMe=pid===ME.id;
+    const div=document.createElement('div');
+    div.className='pslot'+(p.ready?' ready':'')+(isMe?' me':'');
+    const safeTitle=(p.title||'').replace(/[<>&]/g,'');
+    div.innerHTML=`<span class="dot"></span>
+      <span class="nm">${(p.name||'?').replace(/[<>&]/g,'')}${isMe?' (คุณ)':''}${p.host?' 👑':''}
+        ${safeTitle?`<span class="ptitle">${safeTitle}</span>`:''}</span>
+      <span class="st">${p.ready?'พร้อม':'รอ...'}</span>`;
+    box.appendChild(div);
+  });
+  // empty slots (up to MAX_PLAYERS)
+  for(let i=ids.length;i<MAX_PLAYERS;i++){
+    const div=document.createElement('div');
+    div.className='pslot';
+    div.innerHTML=`<span class="dot"></span><span class="nm" style="color:#5a4a80">รอผู้เล่น...</span><span class="st"></span>`;
+    box.appendChild(div);
+  }
+
+  const readyBtn=$('btn-ready');
+  const startBtn=$('btn-start-game');
+  const allReady = ids.length>=2 && ids.every(id=>players[id].ready);
+
+  // ready button (ทุกคนเห็น)
+  if(ids.length<2){
+    readyBtn.disabled=true; readyBtn.textContent='รอผู้เล่นอีกคน... ('+ids.length+'/'+MAX_PLAYERS+')';
+  } else {
+    readyBtn.disabled=false;
+    readyBtn.textContent=ME.ready?'⏳ กดอีกครั้งเพื่อยกเลิกพร้อม':'✅ กดเพื่อพร้อม';
+  }
+
+  // start button (เฉพาะ host เห็น และกดได้เมื่อทุกคนพร้อม)
+  if(startBtn){
+    if(ROOM.isHost){
+      startBtn.style.display='block';
+      startBtn.disabled=!allReady;
+      startBtn.textContent=allReady?('🚀 เริ่มเกม! ('+ids.length+' คน)'):('รอทุกคนกดพร้อม ('+ids.filter(id=>players[id].ready).length+'/'+ids.length+')');
+    } else {
+      startBtn.style.display='block';
+      startBtn.disabled=true;
+      startBtn.textContent=allReady?'รอหัวห้องกดเริ่ม... 👑':('รอทุกคนพร้อม ('+ids.filter(id=>players[id].ready).length+'/'+ids.length+')');
+    }
+  }
+}
+
+function toggleReady(){
+  if(!ROOM.ref)return;
+  const newReady=!ME.ready;
+  ROOM.ref.child('players/'+ME.id+'/ready').set(newReady);
+}
+
+function hostStartGame(){
+  if(!ROOM.isHost||!ROOM.ref)return;
+  ROOM.ref.child('players').get().then(snap=>{
+    const players=snap.val()||{};
+    const ids=Object.keys(players);
+    if(ids.length>=2 && ids.every(id=>players[id].ready)){
+      // ล้าง draftDone เก่า (กันค้างจากเกมก่อน → ข้าม draft)
+      const updates={ status:'drafting', startTime:firebase.database.ServerValue.TIMESTAMP };
+      ids.forEach(id=>{ updates['players/'+id+'/draftDone']=false; });
+      // ล้างคิว sabotage + feed เก่าด้วย
+      updates['sabotageQueue']=null;
+      updates['feed']=null;
+      ROOM.ref.update(updates);
+    }
+  });
+}
+
+/* ========== RACE (Battle Royale) ========== */
+function enterRace(){
+  $('race-code').textContent=ROOM.code;
+  $('race-seed').textContent='Seed #'+ROOM.seed;
+  $('me-name').textContent=ME.name;
+  $('seed-proof').textContent='พิสูจน์ mirror: ลำดับสุ่มจาก seed = '+seedSequence(ROOM.seed,5).join(', ');
+  showScr('scr-race');
+  renderRace();
+}
+
+// deterministic RNG from shared seed (mulberry32) — proof both sides match
+function seedSequence(seed,n){
+  let s=seed|0; const out=[];
+  for(let i=0;i<n;i++){
+    s|=0;s=(s+0x6D2B79F5)|0;
+    let t=Math.imul(s^(s>>>15),1|s);
+    t=(t+Math.imul(t^(t>>>7),61|t))^t;
+    out.push(((t^(t>>>14))>>>0)%100);
+  }
+  return out;
+}
+
+function renderRace(){
+  // my big status
+  $('my-floor-big').textContent=ME.floor;
+  $('my-gold').textContent=ME.gold||0;
+  const wc=$('ward-chip'); if(wc) wc.textContent=(MY_LOADOUT.ward||0)>0?('🔮×'+MY_LOADOUT.ward):'';
+  $('me-name').textContent=ME.name;
+  $('me-hp-txt').textContent=`${ME.hp}/${ME.maxHp}`;
+  setHp('me',ME.hp,ME.maxHp);
+
+  // scoreboard: ทุกคน เรียงตามชั้น (มาก→น้อย)
+  const everyone=[{id:ME.id,name:ME.name,floor:ME.floor,hp:ME.hp,maxHp:ME.maxHp,dead:ME.hp<=0,me:true}]
+    .concat(RIVALS.map(r=>({...r,me:false})));
+  everyone.sort((a,b)=> b.floor-a.floor || b.hp-a.hp);
+  const leadFloor=everyone[0]?everyone[0].floor:0;
+  const sb=$('scoreboard'); sb.innerHTML='';
+  everyone.forEach((p,i)=>{
+    const row=document.createElement('div');
+    row.className='sb-row'+(p.me?' me':'')+(p.dead?' dead':'')+(i===0&&!p.dead?' leader':'');
+    const hpPct=Math.max(0,Math.min(100,(p.hp/p.maxHp)*100));
+    row.innerHTML=`
+      <span class="sb-rank">${p.dead?'💀':(p.offline?'📴':'#'+(i+1))}</span>
+      <span class="sb-name">${(p.name||'?').replace(/[<>&]/g,'')}${p.me?' (คุณ)':''}${i===0&&!p.dead?' 👑':''}</span>
+      <span class="sb-floor">🗼${p.floor}</span>
+      <span class="sb-hp"><div class="sb-hp-track"><div class="sb-hp-fill" style="width:${hpPct}%"></div></div><div class="sb-hptxt">${Math.max(0,p.hp)}/${p.maxHp}</div></span>`;
+    sb.appendChild(row);
+  });
+
+  evalVoidStorm(leadFloor);
+  updateNextFloorUI();
+  updateBagBtn();
+  renderMyBoons();
+}
+
+/* ========== VOID STORM (BR — เทียบกับคนนำสุด) ========== */
+const STORM_GAP=5;
+let _stormActive=false, _stormTimer=null;
+function leaderFloor(){
+  let lead=ME.floor;
+  RIVALS.forEach(r=>{ if(!r.dead && !r.offline && r.floor>lead) lead=r.floor; });   // คนหลุดไม่นับเป็นผู้นำ (กันพายุค้าง)
+  return lead;
+}
+function isBehindByStorm(){
+  if(RIVALS.length===0) return false;
+  return (leaderFloor()-ME.floor) >= STORM_GAP;
+}
+function evalVoidStorm(){
+  const behind=isBehindByStorm();
+  if(behind && !_stormActive) startVoidStorm();
+  else if(!behind && _stormActive) stopVoidStorm();
+}
+function startVoidStorm(){
+  _stormActive=true;
+  document.body.classList.add('storm');
+  $('storm-warn').style.display='block';
+  if(_stormTimer)clearInterval(_stormTimer);
+  _stormTimer=setInterval(()=>{
+    if(!_stormActive || ROOM._finished){ stopVoidStorm(); return; }
+    if(!isBehindByStorm()){ stopVoidStorm(); return; }
+    // ยิ่งหอคอยสูง หมอกยิ่งดุ (endless: การันตีเกมจบ) — 2 + 1 ต่อคนนำทุก 10 ชั้น
+    const drain=2+Math.floor(leaderFloor()/10);
+    ME.hp=Math.max(0,ME.hp-drain);
+    // ถ้ากำลังสู้อยู่ ต้องหักเลือดในสนามด้วย ไม่งั้นตอนจบสู้ (ME.hp=B.php) เลือดพายุจะหายกลับมา
+    if(CUR_B && !CUR_B.over){
+      CUR_B.php=Math.max(0,CUR_B.php-drain);
+      if($('scr-battle').classList.contains('active')) renderBattleUI();
+      if(CUR_B.php<=0){ CUR_B.over=true; CUR_B.won=false; endFight(); return; }
+    }
+    pushMyState();
+  },5000);
+}
+function stopVoidStorm(){
+  _stormActive=false;
+  document.body.classList.remove('storm');
+  $('storm-warn').style.display='none';
+  if(_stormTimer){clearInterval(_stormTimer);_stormTimer=null;}
+}
+function setHp(who,hp,max){
+  const f=$(who+'-hp-fill');
+  if(f) f.style.width=Math.max(0,Math.min(100,(hp/max)*100))+'%';
+}
+
+/* ===== PRACTICE MODE — แข่งกับบอท AI จำลองการแข่งจริง (ไม่ใช้ห้อง/เน็ต) ===== */
+// พารามิเตอร์ต่อความยาก: จำนวนบอท / วินาทีต่อชั้น / ช่วงชั้นที่บอทตาย / ความถี่แกล้ง(วิ 0=ไม่แกล้ง)
+const PRACTICE_DIFFS={
+  easy:     {short:'EASY', bots:2, floorSec:[40,60], death:[6,12],  sabotageEvery:0,  sabTypes:[]},
+  normal:   {short:'NORMAL', bots:3, floorSec:[30,45], death:[10,18], sabotageEvery:90, sabTypes:['curse','smoke','dizzy']},
+  hard:     {short:'HARD', bots:3, floorSec:[22,34], death:[16,28], sabotageEvery:55, sabTypes:['curse','smoke','dizzy','noblock','weaken','web','freeze','bugs']},
+  nightmare:{short:'NIGHTMARE', bots:3, floorSec:[16,26], death:[24,40], sabotageEvery:35, sabTypes:['curse','smoke','dizzy','noblock','weaken','web','freeze','bugs','frenzy','thief','flip','hourglass','pushdown']},
+};
+const BOT_NAMES=['เงาเพลิง','อัศวินหมอก','แม่มดหิน','จิ้งจอกดำ','นักล่าเที่ยงคืน','ผู้เฝ้าหอคอย'];
+let PRACTICE_BOTS=[], PRACTICE_DIFF=null, _botTicker=null, _nextSabAt=0;
+
+function openPracticeDiff(){ $('practice-modal').classList.add('open'); }
+
+function startPractice(diffId){
+  PRACTICE=true;
+  PRACTICE_DIFF=PRACTICE_DIFFS[diffId]||PRACTICE_DIFFS.normal;
+  ME={ id:myId(), name:(localStorage.getItem('ct_pvp_name')||'ผู้ฝึกหัด'), floor:0, maxFloor:0, hp:100, maxHp:100, ready:false, gold:0 };
+  ROOM={ code:'ซ้อม·'+PRACTICE_DIFF.short, ref:null, seed:Math.floor(Math.random()*2147483647), isHost:false };
+  RIVALS=[]; ALL_PLAYERS={};
+  MY_INVENTORY={};
+  PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false };
+  DRAFT._done=false; DRAFT.active=false; DRAFT._gameId='practice'+Date.now();
+  _profileWritten=true;   // โหมดซ้อมไม่นับสถิติ/ฉายา
+  spawnPracticeBots(PRACTICE_DIFF);
+  toast('🎯 ซ้อมระดับ '+PRACTICE_DIFF.short+' — บอท '+PRACTICE_DIFF.bots+' ตัวรอไต่แข่ง!');
+  enterDraft();
+}
+function spawnPracticeBots(diff){
+  stopPracticeBots();
+  const names=BOT_NAMES.slice().sort(()=>Math.random()-0.5);
+  PRACTICE_BOTS=[];
+  const now=Date.now();
+  for(let i=0;i<diff.bots;i++){
+    const mh=100+Math.floor(Math.random()*30);
+    PRACTICE_BOTS.push({
+      id:'bot'+(i+1), name:'🤖 '+names[i],
+      floor:0, maxFloor:0, hp:mh, maxHp:mh,
+      deathFloor:Math.round(diff.death[0]+Math.random()*(diff.death[1]-diff.death[0])),
+      nextFloorAt: now + (15+Math.random()*20)*1000,   // ตัวแรกขยับหลัง draft จบพอดี
+      dead:false,
+    });
+  }
+  _nextSabAt = diff.sabotageEvery ? now + diff.sabotageEvery*1000 : 0;
+  syncBotsToRivals();
+  _botTicker=setInterval(practiceTick, 1000);
+}
+function stopPracticeBots(){ if(_botTicker){clearInterval(_botTicker);_botTicker=null;} }
+function syncBotsToRivals(){
+  RIVALS=PRACTICE_BOTS.map(b=>({ id:b.id, name:b.name, floor:b.floor, maxFloor:b.maxFloor,
+    hp:b.hp, maxHp:b.maxHp, gold:0, ready:true, dead:b.dead, offline:false }));
+  ALL_PLAYERS={ [ME.id]:{name:ME.name} };
+  PRACTICE_BOTS.forEach(b=>{ ALL_PLAYERS[b.id]={name:b.name, floor:b.floor, maxFloor:b.maxFloor, hp:b.hp, maxHp:b.maxHp, lastHeartbeat:Date.now()}; });
+}
+function practiceTick(){
+  if(!PRACTICE || ROOM._finished){ stopPracticeBots(); return; }
+  const diff=PRACTICE_DIFF, now=Date.now();
+  let changed=false;
+  PRACTICE_BOTS.forEach(b=>{
+    if(b.dead || now<b.nextFloorAt) return;
+    b.floor++; b.maxFloor=b.floor;
+    // เลือดบอทลดตามความคืบหน้า (โค้งเดียวกับความเสี่ยงจริง) + สั่นเล็กน้อย
+    const prog=b.floor/b.deathFloor;
+    b.hp=Math.max(0, Math.round(b.maxHp*(1-Math.pow(prog,1.35)) + (Math.random()*14-7)));
+    if(b.floor>=b.deathFloor || b.hp<=0){
+      b.hp=0; b.dead=true;
+      toast(`💀 ${b.name} ตกรอบที่ชั้น ${b.floor}!`);
+      SFX.lose();
+    } else if(b.floor%5===0){
+      toast(`🗼 ${b.name} ไต่ถึงชั้น ${b.floor} แล้ว!`);
+    }
+    b.nextFloorAt=now + (diff.floorSec[0]+Math.random()*(diff.floorSec[1]-diff.floorSec[0]))*1000;
+    changed=true;
+  });
+  // บอทแกล้งผู้เล่น (ตามระดับความยาก)
+  if(_nextSabAt && now>=_nextSabAt){
+    const alive=PRACTICE_BOTS.filter(b=>!b.dead);
+    if(alive.length && ME.hp>0){
+      const bot=alive[Math.floor(Math.random()*alive.length)];
+      const type=diff.sabTypes[Math.floor(Math.random()*diff.sabTypes.length)];
+      applySabotageToPending(type, bot.name, null);   // fromId null = โจรบอทไม่รับ loot คืน
+    }
+    _nextSabAt=now + diff.sabotageEvery*1000*(0.7+Math.random()*0.6);
+  }
+  syncBotsToRivals();
+  if(changed && $('scr-race').classList.contains('active')) renderRace();
+  else evalVoidStorm();   // กดดันหมอกแม้อยู่กลางศึก
+  practiceCheckEnd();
+}
+// จบเกมซ้อมตามกติกา furthest-wins: เราตาย = จบทันที / บอทตายหมด = จบ (ผู้ชนะ = ชั้นสูงสุด)
+function practiceCheckEnd(){
+  if(!PRACTICE || ROOM._finished || CUR_B) return;   // รอจบศึกก่อนค่อยตัดสิน
+  const meAlive=ME.hp>0;
+  const botsAlive=PRACTICE_BOTS.filter(b=>!b.dead).length;
+  if(meAlive && botsAlive>0) return;
+  if(!PRACTICE_BOTS.length){ showEndScreen('__tower__','practice_over'); return; }
+  // เราตายก่อน = การแข่งจริงยังดำเนินต่อ → คำนวณปลายทางของบอทที่ยังรอด (ไต่ถึงชั้นชะตาของมัน)
+  if(!meAlive){
+    PRACTICE_BOTS.forEach(b=>{
+      if(!b.dead){ b.maxFloor=Math.max(b.maxFloor,b.deathFloor); b.floor=b.maxFloor; b.hp=0; b.dead=true; }
+    });
+    syncBotsToRivals();
+  }
+  const list=[{id:ME.id, f:Math.max(ME.maxFloor||0,ME.floor||0), hp:ME.hp}]
+    .concat(PRACTICE_BOTS.map(b=>({id:b.id, f:b.maxFloor, hp:b.hp})));
+  list.sort((a,b)=>b.f-a.f || b.hp-a.hp);
+  stopPracticeBots();
+  showEndScreen(list[0].id,'furthest');
+}
+
+/* ===== DRAFT PHASE — Stat Allocation + Starter Card ===== */
+let DRAFT={ active:false, step:1, stats:{atk:0,hp:0,def:0,int:0,spd:0,mana:0}, startCard:null, timer:120, _timerInt:null, _done:false, _gameId:null };
+let MY_LOADOUT={ deck:[], removed:[], boons:[], upgrades:[] };
+// เด็คจริงตอนนี้ = starter + การ์ดที่เก็บมา − ใบที่ลบทิ้ง + ใบที่อัปเกรด (ลับดาบ)
+function currentDeckList(){
+  const full=pvpStarterDeck().concat(MY_LOADOUT.deck||[]);
+  (MY_LOADOUT.removed||[]).forEach(rid=>{
+    const i=full.indexOf(rid);
+    if(i>=0) full.splice(i,1);
+  });
+  (MY_LOADOUT.upgrades||[]).forEach(bid=>{   // แปลงสำเนาพื้นฐาน 1 ใบ เป็นเวอร์ชัน +
+    const up=UPGRADE_OF[bid];
+    if(!up) return;
+    const i=full.indexOf(bid);
+    if(i>=0) full[i]=up;
+  });
+  return full;
+}
+// การ์ดในเด็คที่ยังอัปเกรดได้ (มีสำเนาพื้นฐานเหลือ + มีเวอร์ชัน +)
+function upgradableInDeck(){
+  const counts={};
+  currentDeckList().forEach(c=>counts[c]=(counts[c]||0)+1);
+  return Object.keys(counts).filter(id=>UPGRADE_OF[id]);
+}
+
+function enterDraft(){
+  if(DRAFT.active||DRAFT._done)return;
+  const gid=DRAFT._gameId;   // เก็บ gameId ไว้ (กันสร้าง object ใหม่แล้วลืม)
+  DRAFT={ active:true, step:2, stats:{}, startCard:null, timer:120, _timerInt:null, _done:false, _gameId:gid };
+  showScr('scr-draft');
+  $('draft-step1').style.display='none';    // ยกเลิกการจิ้มแต้ม — เปลี่ยนเป็นระบบพร
+  $('draft-step2').style.display='block';   // เลือกการ์ดเริ่มต้น
+  $('draft-next').style.display='block';
+  $('draft-next').textContent='ยืนยัน → เลือกพร ✨';
+  $('draft-wait').style.display='none';
+  renderStartCards();
+  startDraftTimer();
+}
+
+function ptsUsed(){ return PVP_STAT_IDS.reduce((s,id)=>s+(DRAFT.stats[id]||0),0); }
+function ptsLeft(){ return STAT_POINTS_TOTAL - ptsUsed(); }
+
+function startDraftTimer(){
+  stopDraftTimer();
+  DRAFT.timer=120;
+  updateTimerDisplay();
+  DRAFT._timerInt=setInterval(()=>{
+    DRAFT.timer--;
+    updateTimerDisplay();
+    if(DRAFT.timer<=0){ stopDraftTimer(); draftNext(); }
+  },1000);
+}
+function stopDraftTimer(){ if(DRAFT._timerInt){clearInterval(DRAFT._timerInt);DRAFT._timerInt=null;} }
+function updateTimerDisplay(){
+  const m=Math.floor(Math.max(0,DRAFT.timer)/60), s=Math.max(0,DRAFT.timer)%60;
+  const el=$('draft-timer');
+  el.textContent=m+':'+(s<10?'0':'')+s;
+  el.classList.toggle('urgent',DRAFT.timer<=20);
+}
+
+function renderStatList(){
+  const box=$('stat-list'); box.innerHTML='';
+  PVP_STAT_IDS.forEach(id=>{
+    const st=PVP_STATS[id];
+    const val=DRAFT.stats[id]||0;
+    const row=document.createElement('div');
+    row.className='stat-row';
+    row.innerHTML=`
+      <div class="stat-info">
+        <div class="stat-name">${st.name}</div>
+        <div class="stat-per">${st.per}</div>
+      </div>
+      <div class="stat-ctrl">
+        <button class="stat-btn minus" data-id="${id}" data-d="-1">−</button>
+        <span class="stat-val">${val}</span>
+        <button class="stat-btn plus" data-id="${id}" data-d="1">+</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  box.querySelectorAll('.stat-btn').forEach(b=>{
+    b.onclick=()=>adjustStat(b.dataset.id, parseInt(b.dataset.d));
+  });
+  $('pts-left').textContent=ptsLeft();
+  const nb=$('draft-next');
+  nb.textContent = ptsLeft()===0 ? 'ถัดไป → เลือกการ์ด' : ('เหลืออีก '+ptsLeft()+' แต้ม (ถัดไปได้เลย)');
+}
+function adjustStat(id, d){
+  const st=PVP_STATS[id];
+  const cur=DRAFT.stats[id]||0;
+  const next=cur+d;
+  if(next<0) return;
+  if(next>st.max) return;
+  if(d>0 && ptsLeft()<=0) return;   // ไม่มีแต้มเหลือ
+  DRAFT.stats[id]=next;
+  renderStatList();
+}
+
+// ปุ่มถัดไป: step1(แต้ม) → step2(การ์ด) → finishDraft
+function draftNext(){
+  if(DRAFT._done) return;   // กันกด/หมดเวลาซ้ำ
+  finishDraft();
+  // เลือกพรเริ่มต้น 1 จาก 3 (สุ่มจาก seed ต่อผู้เล่น — พื้น+กลาง)
+  const rc=boonChoices(mulberryFrom((ROOM.seed||1)*7919 + idSalt()*13), 'start', 3);
+  openBoonPicker(rc, '✨ เลือกพรเริ่มต้น — ชุดสุ่มจาก seed', null);
+}
+function idSalt(){ let h=0; const s=ME.id||''; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h)%100000; }
+// สุ่มการ์ดเริ่มต้นสีละใบ (กาย/เวท/ป้องกัน) — ใช้ seed+id ส่วนตัว
+// การ์ดหน้าตา pixel-frame ร่วม (มือ + reward/draft) — cost = เลขที่จะโชว์บนวงกลม
+function pxCardInner(card, cost){
+  const rar={legendary:'★★',rare:'★',uncommon:'✦'}[card.rarity]||'';
+  return `<span class="c-cost">${cost}</span>`
+    + (rar?`<span class="c-rar">${rar}</span>`:'')
+    + (card.exhaust?'<span class="c-exh">1×</span>':'')
+    + `<div class="c-bar">${card.en||card.name}</div>`
+    + `<div class="c-scene">${card.ico?`<img class="c-art" src="${card.ico}" alt="">`:''}</div>`
+    + `<div class="c-foot">${card.desc}</div>`;
+}
+function pxCardEl(card, selected){
+  const el=document.createElement('div');
+  el.className='pxc draft-opt t-'+card.type+(card.rarity?' r-'+card.rarity:'')+(selected?' sel':'');
+  el.innerHTML=pxCardInner(card, card.curse?'✕':card.cost);
+  return el;
+}
+function renderStartCards(){
+  const rng=mulberryFrom((ROOM.seed||1)*3313 + (ME.id?ME.id.length*131:0));
+  const opts=[
+    pickFromPool(REWARD_POOLS.attack, rng),
+    pickFromPool(REWARD_POOLS.magic, rng),
+    pickFromPool(REWARD_POOLS.defense, rng),
+  ];
+  const box=$('draft-startcards'); box.innerHTML='';
+  opts.forEach(cid=>{
+    const el=pxCardEl(PVP_CARDS[cid], DRAFT.startCard===cid);
+    el.onclick=()=>{ DRAFT.startCard=cid; renderStartCards(); };
+    box.appendChild(el);
+  });
+}
+
+function finishDraft(){
+  stopDraftTimer();
+  DRAFT.active=false; DRAFT._done=true;
+  // เด็คเริ่ม = การ์ดที่เลือก (ถ้าเลือก) — รวมกับ starter ตอน startFight
+  const startDeck=DRAFT.startCard?[DRAFT.startCard]:[];
+  MY_LOADOUT={ deck:startDeck, removed:[], boons:[], upgrades:[], ward:0 };
+  MY_INVENTORY={};   // เริ่มเกม กระเป๋าว่าง
+  // เลือดฐาน 100 — เพิ่มได้จากพร Vigor ระหว่างไต่
+  ME.maxHp=100; ME.hp=100;
+  persistLoadout();
+  // โหมดซ้อม: ไม่ต้องรอใคร เข้าหอคอยเลย
+  if(PRACTICE){
+    $('draft-next').style.display='none';
+    enterRace();
+    return;
+  }
+  $('draft-next').style.display='none';
+  $('draft-wait').style.display='block';
+  // เขียน state + draftDone ในครั้งเดียว (ไม่เรียก renderRace ระหว่างอยู่จอ draft)
+  if(ROOM.ref){
+    ROOM.ref.child('players/'+ME.id).update({
+      hp:ME.hp, maxHp:ME.maxHp, draftDone:true,
+      lastHeartbeat:firebase.database.ServerValue.TIMESTAMP
+    });
+  }
+}
+
+function showStatInfo(){
+  const box=$('stat-info-list'); box.innerHTML='';
+  PVP_STAT_IDS.forEach(id=>{
+    const st=PVP_STATS[id];
+    const row=document.createElement('div');
+    row.className='si-row';
+    row.innerHTML=`<span class="si-name">${st.name}</span><span class="si-desc">${st.per}</span>`;
+    box.appendChild(row);
+  });
+  $('stat-info-modal').classList.add('open');
+}
+
+/* ===== SABOTAGE / Dark Market (Stage 4) ===== */
+// cat: attack=กดศึกเป้า · tempo=ถ่วงจังหวะ · disrupt=ก่อกวนจอ · self=ใช้กับตัวเอง(ได้ผลทันที ไม่เข้ากระเป๋า)
+const SABOTAGE_ITEMS=[
+  // 🗡️ กดศึกเป้า
+  {id:'curse',  cat:'attack', ic:'⛓️', name:'โซ่ตรวน',        cost:50,  desc:'เพิ่มการ์ดคำสาป Daze ในเด็คเป้า 1 ใบ'},
+  {id:'noblock',cat:'attack', ic:'🔓', name:'ทำลายโล่',        cost:70,  desc:'เป้าใช้การ์ดบล็อกไม่ได้ 1 ศึก'},
+  {id:'weaken', cat:'attack', ic:'💔', name:'คำสาปอ่อนแอ',     cost:90,  desc:'เป้าตีเบาลง -3 และโดนแรงขึ้น 1 ศึก'},
+  {id:'frenzy', cat:'attack', ic:'🧪', name:'น้ำยาคลุ้มคลั่ง', cost:80,  desc:'ศัตรูชั้นหน้าของเป้า HP +20%'},
+  // ⏱️ ถ่วงจังหวะ/เศรษฐกิจ
+  {id:'web',    cat:'tempo', ic:'🕸️', name:'ใยเหนียว',        cost:55,  desc:'ศึกหน้าของเป้า เทิร์นแรกจั่วลด 2 ใบ'},
+  {id:'freeze', cat:'tempo', ic:'🧊', name:'เยือกแข็ง',        cost:65,  desc:'ศึกหน้าของเป้า เทิร์นแรกมานา −1'},
+  {id:'hourglass',cat:'tempo',ic:'⏳', name:'นาฬิกาทราย',      cost:70,  desc:'ศึกหน้าของเป้า เวลาต่อเทิร์นเหลือ 25 วิ'},
+  {id:'thief',  cat:'tempo', ic:'🦹', name:'โจรปล้นเสบียง',   cost:70,  desc:'ดูดเครดิต 30 จากเป้ามาให้คุณ'},
+  {id:'pushdown',cat:'tempo',ic:'🪜', name:'ผลักตกบันได',     cost:130, desc:'เป้าร่วงลง 1 ชั้น (ชั้นสูงสุดไม่ลด — เสียจังหวะไต่ซ้ำ)'},
+  // 👁️ ก่อกวนจอ
+  {id:'smoke',  cat:'disrupt', ic:'💨', name:'ระเบิดควัน',     cost:60,  desc:'จอเป้าโดนหมอกบัง 18 วินาที'},
+  {id:'dizzy',  cat:'disrupt', ic:'🌀', name:'เมาหมัด',        cost:55,  desc:'จอเป้าโยกเอียงไปมา 15 วินาที'},
+  {id:'bugs',   cat:'disrupt', ic:'🦇', name:'ฝูงค้างคาว',     cost:65,  desc:'ค้างคาวบินว่อนบังจอเป้า 18 วินาที'},
+  {id:'flip',   cat:'disrupt', ic:'🙃', name:'โลกกลับหัว',     cost:75,  desc:'จอเป้ากลับหัว 180° นาน 12 วินาที'},
+  // 💊 ของตัวเอง (ได้ผลทันทีตอนซื้อ)
+  {id:'wardstone',cat:'self', ic:'🔮', name:'หินคุ้มภัย',      cost:60,  desc:'บล็อกของแกล้งชิ้นถัดไปที่โดนคุณ (สะสมได้)', self:true},
+  {id:'healpot', cat:'self', ic:'🧪', name:'ยาสมานแผล',       cost:65,  desc:'ฟื้น 15 HP ทันที', self:true},
+];
+const SAB_CATS=[['attack','🗡️ กดศึกเป้า'],['tempo','⏱️ ถ่วงจังหวะ'],['disrupt','👁️ ก่อกวนจอ'],['self','💊 ของตัวเอง']];
+
+function openDarkMarket(){
+  $('dm-credit').textContent=ME.gold||0;
+  $('dm-msg').textContent='ซื้อของเก็บกระเป๋า แล้วเลือกใช้ทีหลัง';
+  renderDarkMarketItems();
+  $('dm-modal').classList.add('open');
+}
+function renderDarkMarketItems(){
+  const box=$('dm-items'); box.innerHTML='';
+  SAB_CATS.forEach(([cat,label])=>{
+    const head=document.createElement('div');
+    head.className='dm-cat';
+    head.textContent=label;
+    box.appendChild(head);
+    // บริการลบการ์ดอยู่หัวหมวด "ของตัวเอง"
+    if(cat==='self'){
+      const rmAfford=(ME.gold||0)>=CARD_REMOVE_COST;
+      const rm=document.createElement('div');
+      rm.className='dm-item '+(rmAfford?'afford':'cant');
+      rm.innerHTML=`<span class="di-ic">🗑️</span>
+        <div class="di-body"><div class="di-name">ตัดการ์ดทิ้ง</div>
+        <div class="di-desc">ลบการ์ดออกจากเด็คถาวร — เด็คบางลง จั่วใบเด็ดบ่อยขึ้น</div></div>
+        <span class="di-cost">${CARD_REMOVE_COST}💳</span>`;
+      if(rmAfford) rm.onclick=()=>{ $('dm-modal').classList.remove('open'); openDeckView(true); };
+      box.appendChild(rm);
+    }
+    SABOTAGE_ITEMS.filter(it=>it.cat===cat).forEach(it=>{
+      const afford=(ME.gold||0)>=it.cost;
+      const el=document.createElement('div');
+      el.className='dm-item '+(afford?'afford':'cant');
+      el.innerHTML=`<span class="di-ic">${it.ic}</span>
+        <div class="di-body"><div class="di-name">${it.name}</div><div class="di-desc">${it.desc}</div></div>
+        <span class="di-cost">${it.cost}💳</span>`;
+      if(afford) el.onclick=()=>buySabotage(it);
+      box.appendChild(el);
+    });
+  });
+}
+// กระเป๋าของแกล้ง (ซื้อเก็บไว้ ใช้ทีหลัง)
+let MY_INVENTORY={};   // {itemId: count}
+function buySabotage(item){
+  if((ME.gold||0)<item.cost){ $('dm-msg').textContent='เครดิตไม่พอ'; return; }
+  ME.gold-=item.cost;
+  $('dm-credit').textContent=ME.gold;
+  // ของตัวเอง — ได้ผลทันทีตอนซื้อ ไม่เข้ากระเป๋า
+  if(item.self){
+    if(item.id==='wardstone'){
+      MY_LOADOUT.ward=(MY_LOADOUT.ward||0)+1;
+      $('dm-msg').textContent=`🔮 หินคุ้มภัยพร้อมทำงาน (สะสม ${MY_LOADOUT.ward} ลูก)`;
+      SFX.block();
+    } else if(item.id==='healpot'){
+      const b=ME.hp;
+      ME.hp=Math.min(ME.maxHp, ME.hp+15);
+      $('dm-msg').textContent=`🧪 ฟื้น +${ME.hp-b} HP (${ME.hp}/${ME.maxHp})`;
+      SFX.heal();
+    }
+    persistLoadout();
+    pushMyState();
+    renderDarkMarketItems();
+    return;
+  }
+  // ของแกล้ง → เก็บเข้ากระเป๋า (เลือกใช้ทีหลัง)
+  pushMyState();
+  MY_INVENTORY[item.id]=(MY_INVENTORY[item.id]||0)+1;
+  persistLoadout();
+  $('dm-msg').textContent=`${item.ic} ซื้อ "${item.name}" เก็บกระเป๋าแล้ว! (เปิดกระเป๋าเพื่อใช้)`;
+  renderDarkMarketItems();
+  updateBagBtn();
+}
+
+/* ===== Bag (เปิดใช้ของแกล้ง) ===== */
+function bagCount(){ return Object.values(MY_INVENTORY).reduce((a,b)=>a+b,0); }
+function updateBagBtn(){
+  const n=bagCount();
+  const c=$('bag-count'); if(c) c.textContent=n>0?`(${n})`:'';
+  const b=$('btn-bag'); if(b) b.classList.toggle('shop-open', n>0);
+}
+function openBag(){
+  if(bagCount()===0){ toast('กระเป๋าว่าง — ซื้อของจากร้านค้ามืดก่อน'); return; }
+  if(RIVALS.filter(r=>!r.dead).length===0){ toast('ไม่มีเป้าหมายที่แกล้งได้'); return; }
+  // target dropdown
+  const sel=$('bag-target'); sel.innerHTML='';
+  RIVALS.filter(r=>!r.dead).forEach(r=>{
+    const o=document.createElement('option');
+    o.value=r.id; o.textContent=`${r.name} (ชั้น ${r.floor})`;
+    sel.appendChild(o);
+  });
+  $('bag-msg').textContent='';
+  renderBagItems();
+  $('bag-modal').classList.add('open');
+}
+function renderBagItems(){
+  const box=$('bag-items'); box.innerHTML='';
+  const owned=SABOTAGE_ITEMS.filter(it=>(MY_INVENTORY[it.id]||0)>0);
+  if(owned.length===0){ box.innerHTML='<div class="dm-msg">กระเป๋าว่าง</div>'; return; }
+  owned.forEach(it=>{
+    const n=MY_INVENTORY[it.id];
+    const el=document.createElement('div');
+    el.className='dm-item afford';
+    el.innerHTML=`<span class="di-ic">${it.ic}</span>
+      <div class="di-body"><div class="di-name">${it.name} ×${n}</div><div class="di-desc">${it.desc}</div></div>
+      <span class="di-cost">ใช้ ▶</span>`;
+    el.onclick=()=>useSabotage(it);
+    box.appendChild(el);
+  });
+}
+function useSabotage(item){
+  const targetId=$('bag-target').value;
+  if(!targetId){ $('bag-msg').textContent='เลือกเป้าหมายก่อน'; return; }
+  if((MY_INVENTORY[item.id]||0)<=0){ $('bag-msg').textContent='ไม่มีของชิ้นนี้'; return; }
+  // โหมดซ้อม: แกล้งบอทได้ — ทุกชิ้นถ่วงให้บอทไต่ช้าลง ~20 วิ
+  if(PRACTICE){
+    const bot=PRACTICE_BOTS.find(b=>b.id===targetId);
+    if(!bot || bot.dead){ $('bag-msg').textContent='เป้าหมายไม่อยู่แล้ว'; return; }
+    MY_INVENTORY[item.id]--;
+    if(MY_INVENTORY[item.id]<=0) delete MY_INVENTORY[item.id];
+    persistLoadout();
+    bot.nextFloorAt += 15000 + Math.random()*12000;
+    $('bag-msg').textContent=`${item.ic} ใช้ "${item.name}" ใส่ ${bot.name} — บอทช้าลง!`;
+    toast(`😈 ${bot.name} โดนขัดขวาง ไต่ช้าลง!`);
+    SFX.sab();
+    renderBagItems(); updateBagBtn();
+    if(bagCount()===0) setTimeout(()=>$('bag-modal').classList.remove('open'), 800);
+    return;
+  }
+  if(!ROOM.ref) return;
+  // ส่งผ่านคิวของเป้า (เครื่องเป้าจัดการ effect ตัวเอง — กัน race)
+  ROOM.ref.child('sabotageQueue/'+targetId).push({ type:item.id, from:ME.name, fromId:ME.id, at:firebase.database.ServerValue.TIMESTAMP });
+  MY_INVENTORY[item.id]--;
+  if(MY_INVENTORY[item.id]<=0) delete MY_INVENTORY[item.id];
+  persistLoadout();
+  const tname=(RIVALS.find(r=>r.id===targetId)||{}).name||'เป้า';
+  feedPost(`😈 ${ME.name} ใช้ ${item.ic}${item.name} ใส่ ${tname}!`);   // ประจานให้ทั้งห้องรู้
+  $('bag-msg').textContent=`${item.ic} ใช้ "${item.name}" ใส่ ${tname} แล้ว!`;
+  renderBagItems();
+  updateBagBtn();
+  if(bagCount()===0) setTimeout(()=>$('bag-modal').classList.remove('open'), 800);
+}
+
+// อ่าน sabotage ที่มีคนส่งมาหาเรา (เก็บไว้ apply ตอนเข้าชั้นถัดไป)
+let PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false };
+/* ===== LIVE FEED — เหตุการณ์เด่นของคนอื่นเด้งเป็น toast ให้ทั้งห้องเห็น ===== */
+let _feedRef=null, _feedStartTs=0;
+function feedPost(msg){
+  if(!ROOM.ref || ROOM._finished || PRACTICE) return;
+  ROOM.ref.child('feed').push({ msg, from:ME.id, at:firebase.database.ServerValue.TIMESTAMP });
+}
+function listenFeed(){
+  if(!ROOM.ref) return;
+  _feedStartTs=Date.now();
+  _feedRef=ROOM.ref.child('feed').limitToLast(4);
+  _feedRef.on('child_added', snap=>{
+    const f=snap.val();
+    if(!f || !f.msg) return;
+    if(f.from===ME.id) return;                        // เหตุการณ์ตัวเองเห็น toast อยู่แล้ว
+    if(f.at && f.at < _feedStartTs-8000) return;      // ข้ามของเก่าก่อนเราเข้าห้อง
+    toast(f.msg);
+  });
+}
+
+let _sabListenerRef=null;
+function listenMySabotage(){
+  if(!ROOM.ref) return;
+  _sabListenerRef=ROOM.ref.child('sabotageQueue/'+ME.id);
+  _sabListenerRef.on('child_added', snap=>{
+    const s=snap.val();
+    if(!s)return;
+    applySabotageToPending(s.type, s.from, s.fromId, s.amount);
+    // ลบออกจากคิวหลังรับ
+    snap.ref.remove();
+  });
+}
+function applySabotageToPending(type, from, fromId, amount){
+  // 🔮 หินคุ้มภัย: สลายของแกล้งชิ้นถัดไปที่โดน (ยกเว้นเงินเข้าจากการปล้น)
+  if(type!=='loot' && (MY_LOADOUT.ward||0)>0){
+    MY_LOADOUT.ward--;
+    persistLoadout();
+    SFX.block();
+    toast(`🔮 หินคุ้มภัยสลายการแกล้งของ ${from}! (เหลือ ${MY_LOADOUT.ward})`);
+    if(!PRACTICE) feedPost(`🔮 ${ME.name} กันการแกล้งของ ${from} ได้!`);
+    renderRace();
+    return;
+  }
+  if(type!=='loot') SFX.sab();   // โดนแกล้ง = เสียงหลอน (ยกเว้นเงินเข้า)
+  if(type==='curse'){ PENDING_SABOTAGE.curseCards++; toast(`⛓️ ${from} ส่งคำสาปมา!`); }
+  else if(type==='web'){ PENDING_SABOTAGE.web=true; toast(`🕸️ ${from} พ่นใยเหนียวใส่คุณ! (ศึกหน้าจั่วลด 2)`); }
+  else if(type==='freeze'){ PENDING_SABOTAGE.freeze=true; toast(`🧊 ${from} แช่แข็งมานาคุณ! (ศึกหน้ามานา −1)`); }
+  else if(type==='hourglass'){ PENDING_SABOTAGE.slowTimer=true; toast(`⏳ ${from} บีบเวลาคุณ! (ศึกหน้าเทิร์นละ 25 วิ)`); }
+  else if(type==='pushdown'){
+    if(ME.floor>0){ ME.floor--; pushMyState(); updateNextFloorUI(); }
+    toast(`🪜 ${from} ผลักคุณตกบันได! (ชั้น −1)`);
+  }
+  else if(type==='flip'){ triggerFlip(from); }
+  else if(type==='dizzy'){ triggerDizzy(from); }
+  else if(type==='bugs'){ triggerBugs(from); }
+  else if(type==='frenzy'){ PENDING_SABOTAGE.enemyHpBoost=0.20; toast(`🧪 ${from} เสกศัตรูให้แกร่งขึ้น!`); }
+  else if(type==='noblock'){ PENDING_SABOTAGE.noBlock=true; toast(`🔓 ${from} ทำลายโล่คุณ!`); }
+  else if(type==='weaken'){ PENDING_SABOTAGE.weaken=true; toast(`💔 ${from} สาปให้คุณอ่อนแอ!`); }
+  else if(type==='smoke'){ triggerSmokeScreen(from); }
+  else if(type==='thief'){
+    // โดนขโมย — เครื่องเราหักเงินตัวเอง (กัน race) แล้วส่งเงินคืนให้โจร
+    const steal=Math.min(30, ME.gold||0);
+    ME.gold=Math.max(0,(ME.gold||0)-steal);
+    pushMyState();
+    toast(`🦹 ${from} ขโมย ${steal} เครดิตจากคุณ!`);
+    if(fromId && steal>0){
+      ROOM.ref.child('sabotageQueue/'+fromId).push({ type:'loot', from:ME.name, amount:steal, at:firebase.database.ServerValue.TIMESTAMP });
+    }
+  }
+  else if(type==='loot'){
+    // โจรได้เงินที่ขโมยมา
+    ME.gold=(ME.gold||0)+(amount||0);
+    pushMyState();
+    if($('dm-credit')) $('dm-credit').textContent=ME.gold;
+    toast(`💰 ขโมยจาก ${from} ได้ ${amount} เครดิต!`);
+  }
+}
+function triggerSmokeScreen(from){
+  toast(`💨 ${from} ปล่อยระเบิดควัน!`);
+  document.body.classList.add('smoke');
+  setTimeout(()=>document.body.classList.remove('smoke'), 18000);
+}
+function triggerFlip(from){
+  toast(`🙃 ${from} พลิกโลกของคุณ!`);
+  document.body.classList.add('flipped');
+  setTimeout(()=>document.body.classList.remove('flipped'), 12000);
+}
+function triggerDizzy(from){
+  toast(`🌀 ${from} ทำคุณเมาหมัด!`);
+  document.body.classList.add('dizzy');
+  setTimeout(()=>document.body.classList.remove('dizzy'), 15000);
+}
+function triggerBugs(from){
+  toast(`🦇 ${from} ปล่อยฝูงค้างคาวใส่คุณ!`);
+  const box=document.createElement('div');
+  box.className='bug-box';
+  for(let i=0;i<9;i++){
+    const b=document.createElement('img');
+    b.src='assets/enemies/bat.png';
+    const dir=Math.random()<0.5;
+    const sz=Math.round(30+Math.random()*28);
+    b.style.top=(5+Math.random()*80)+'%';
+    b.style.width=b.style.height=sz+'px';
+    if(dir) b.style.transform='scaleX(-1)';
+    b.style.animation=(dir?'bugflyL':'bugflyR')+' '+(2.5+Math.random()*3).toFixed(1)+'s linear '+(Math.random()*2).toFixed(1)+'s infinite';
+    box.appendChild(b);
+  }
+  document.body.appendChild(box);
+  setTimeout(()=>box.remove(), 18000);
+}
+function consumePendingSabotage(){
+  const s={
+    curseCards:PENDING_SABOTAGE.curseCards,
+    enemyHpBoost:PENDING_SABOTAGE.enemyHpBoost,
+    noBlock:PENDING_SABOTAGE.noBlock,
+    weaken:PENDING_SABOTAGE.weaken,
+    web:!!PENDING_SABOTAGE.web,           // ใยเหนียว: เทิร์นแรกจั่วลด 2
+    freeze:!!PENDING_SABOTAGE.freeze,     // เยือกแข็ง: เทิร์นแรกมานา −1
+    slowTimer:!!PENDING_SABOTAGE.slowTimer // นาฬิกาทราย: เทิร์นละ 25 วิ (จัดการฝั่ง UI)
+  };
+  PENDING_SABOTAGE={ curseCards:0, enemyHpBoost:0, smoke:false, noBlock:false, weaken:false, web:false, freeze:false, slowTimer:false };
+  return s;
+}
+
+/* ===== BATTLE (Stage: battle engine) ===== */
+let CUR_B=null;
+/* ประตูทางเลือกประจำชั้น — deterministic จาก seed (ทุกคนเห็นชุดเดียวกัน แฟร์) */
+function isBossFloor(floor){ return floor>=21 && (floor-21)%10===0; }   // บอสวนทุก 10 ชั้น
+function doorsForFloor(seed, floor){
+  if(isBossFloor(floor)) return {elite:false, rest:false};   // ชั้นบอสมีทางเดียว
+  const rng=mulberryFrom((seed||1)*389 + floor*127);
+  return { elite: rng()<0.5, rest: rng()<0.55 };
+}
+// จุดพัก = เลือก 1 อย่าง (ฟื้น HP หรือ ลับดาบอัปเกรดการ์ด) — แก้ปัญหาฟื้นฟรีเยอะเกิน
+function restHere(){
+  if(ME.hp<=0) return;
+  const nf=ME.floor+1;
+  if(ME._restedFloor===nf){ toast('พักที่ชั้นนี้ไปแล้ว — ต้องเดินหน้าต่อ'); return; }
+  const healAmt=Math.round(ME.maxHp*0.3);
+  $('rest-hp').textContent=`${ME.hp}/${ME.maxHp}`;
+  $('rest-hpfill').style.width=Math.max(0,Math.min(100,ME.hp/ME.maxHp*100))+'%';
+  $('rest-heal-amt').textContent='+'+healAmt;
+  const canUpg=upgradableInDeck().length>0;
+  const ub=$('rest-upgrade');
+  ub.style.opacity=canUpg?'1':'.45';
+  ub.style.pointerEvents=canUpg?'auto':'none';
+  $('rest-modal').classList.add('open');
+}
+function chooseRestHeal(){
+  const nf=ME.floor+1;
+  ME._restedFloor=nf;
+  const before=ME.hp;
+  ME.hp=Math.min(ME.maxHp, ME.hp+Math.round(ME.maxHp*0.3));
+  SFX.heal();
+  toast(`⛺ พักฟื้น +${ME.hp-before} HP`);
+  $('rest-modal').classList.remove('open');
+  pushMyState();
+  updateNextFloorUI();
+}
+function chooseRestUpgrade(){
+  renderUpgradePicker();
+  $('rest-modal').classList.remove('open');
+  $('upgrade-modal').classList.add('open');
+}
+function renderUpgradePicker(){
+  const box=$('upgrade-list'); box.innerHTML='';
+  const ids=upgradableInDeck();
+  if(!ids.length){ box.innerHTML='<div class="dm-msg">ไม่มีการ์ดที่อัปเกรดได้แล้ว</div>'; return; }
+  const R_ORDER={legendary:0,rare:1,uncommon:2,common:3};
+  ids.sort((a,b)=>PVP_CARDS[a].type.localeCompare(PVP_CARDS[b].type)||(PVP_CARDS[a].cost-PVP_CARDS[b].cost));
+  ids.forEach(id=>{
+    const b=PVP_CARDS[id], u=PVP_CARDS[UPGRADE_OF[id]];
+    const el=document.createElement('div');
+    el.className='cl-row'+(b.rarity&&b.rarity!=='common'?' r-'+b.rarity:'');
+    el.style.cursor='pointer';
+    const diff=upgradeDiffText(b,u);
+    el.innerHTML=`${b.ico?`<img class="cl-art" src="${b.ico}" alt="">`:''}
+      <div><div class="cl-name">${b.name} <span class="cl-cost">💎${b.cost}</span></div>
+      <div class="cl-desc">${diff}</div></div><span class="di-cost" style="color:#5dcaa5">🔨 ⬆</span>`;
+    el.onclick=()=>applyUpgrade(id);
+    box.appendChild(el);
+  });
+}
+function upgradeDiffText(b,u){
+  const parts=[];
+  if(u.dmg!=null&&u.dmg!==b.dmg) parts.push(`ดาเมจ ${b.dmg}→${u.dmg}`);
+  if(u.comboDmg!=null&&u.comboDmg!==b.comboDmg) parts.push(`ดาเมจ/ใบ ${b.comboDmg}→${u.comboDmg}`);
+  if(u.block!=null&&u.block!==b.block) parts.push(`บล็อก ${b.block}→${u.block}`);
+  if(u.heal!=null&&u.heal!==b.heal) parts.push(`ฟื้น ${b.heal}→${u.heal}`);
+  if(u.burn!=null&&u.burn!==b.burn) parts.push(`ไฟ ${b.burn}→${u.burn}`);
+  if(u.poison!=null&&u.poison!==b.poison) parts.push(`พิษ ${b.poison}→${u.poison}`);
+  if(u.thorns!=null&&u.thorns!==b.thorns) parts.push(`หนาม ${b.thorns}→${u.thorns}`);
+  if(u.draw!=null&&u.draw!==b.draw) parts.push(`จั่ว ${b.draw}→${u.draw}`);
+  return parts.join(' · ')||'อัปเกรด';
+}
+function applyUpgrade(baseId){
+  const nf=ME.floor+1;
+  ME._restedFloor=nf;   // ใช้ turn พักไปแล้ว
+  MY_LOADOUT.upgrades=(MY_LOADOUT.upgrades||[]);
+  MY_LOADOUT.upgrades.push(baseId);
+  persistLoadout();
+  SFX.legend();
+  toast(`🔨 อัปเกรด ${PVP_CARDS[baseId].name} → ${PVP_CARDS[UPGRADE_OF[baseId]].name}`);
+  $('upgrade-modal').classList.remove('open');
+  updateNextFloorUI();
+}
+function updateNextFloorUI(){
+  const nf=ME.floor+1;
+  const nfl=$('next-floor');
+  if(nfl)nfl.textContent=nf;
+  // ประตูทางเลือก: Elite / จุดพัก
+  const doors=doorsForFloor(ROOM.seed, nf);
+  const boss=isBossFloor(nf);
+  const eb=$('btn-elite');
+  if(eb){
+    if(ME.hp<=0 || !doors.elite) eb.style.display='none';
+    else { eb.style.display='block'; eb.textContent=`💀 ห้อง Elite ชั้น ${nf} — โหดขึ้น รางวัล ×2`; }
+  }
+  const rb=$('btn-rest');
+  if(rb){
+    if(ME.hp<=0 || !doors.rest) rb.style.display='none';
+    else {
+      rb.style.display='block';
+      const used=ME._restedFloor===nf;
+      rb.disabled=used;
+      rb.textContent=used?'⛺ พักไปแล้วที่ชั้นนี้':'🔥 จุดพัก — ฟื้น HP / ลับดาบ (ไม่ขึ้นชั้น)';
+    }
+  }
+  const btn=$('btn-fight');
+  if(btn){
+    if(ME.hp<=0){                                   // ตกรอบ — ห้ามลงสู้ต่อ (กันฟื้นคืนชีพ)
+      btn.textContent='👻 ตกรอบแล้ว — แต่ผียังแกล้งได้!';
+      btn.disabled=true;
+      if(!ME._ghostToast){                          // บอกครั้งเดียวว่าโหมดผีทำอะไรได้
+        ME._ghostToast=true;
+        toast('👻 คุณกลายเป็นผี — ใช้เครดิตที่เหลือซื้อของแกล้งหลอกหลอนคนเป็นต่อได้!');
+      }
+    } else {
+      btn.disabled=false;
+      btn.innerHTML = boss
+        ? '👹 สู้บอสชั้น <span id="fight-floor">'+nf+'</span>!'
+        : (nf>21 ? '🕳️ ลงเหวลึกชั้น <span id="fight-floor">'+nf+'</span>'
+                 : '⚔️ เข้าต่อสู้ชั้น <span id="fight-floor">'+nf+'</span>');
+    }
+  }
+  // ร้านค้ามืดซื้อได้ตลอด
+  const dm=$('btn-darkmarket');
+  if(dm){ dm.disabled=false; dm.textContent='🕯️ ร้านค้ามืด (ซื้อของแกล้ง)'; }
+}
+/* ===== Turn timer (กันโกง: นิ่งไม่กดจบเทิร์น) ===== */
+const TURN_SECONDS=45;
+let _turnTimer=null, _turnTimeLeft=TURN_SECONDS, _turnSecCur=TURN_SECONDS;   // _turnSecCur ถูกบีบเหลือ 25 โดยนาฬิกาทราย
+function startTurnTimer(){
+  stopTurnTimer();
+  _turnTimeLeft=_turnSecCur;
+  updateTurnTimerUI();
+  _turnTimer=setInterval(()=>{
+    _turnTimeLeft--;
+    updateTurnTimerUI();
+    if(_turnTimeLeft<=0){
+      stopTurnTimer();
+      btLog('⏰ หมดเวลา! จบเทิร์นอัตโนมัติ');
+      onEndTurn();
+    }
+  },1000);
+}
+function stopTurnTimer(){ if(_turnTimer){clearInterval(_turnTimer);_turnTimer=null;} }
+function updateTurnTimerUI(){
+  const el=$('bt-timer'); if(!el)return;
+  el.textContent='⏱️ '+_turnTimeLeft+'วิ';
+  el.classList.toggle('urgent',_turnTimeLeft<=10);
+}
+
+function startFight(elite){
+  if(ME.hp<=0){ toast('💀 คุณตกรอบแล้ว — สู้ต่อไม่ได้'); return; }   // กันตายแล้วยังลงสู้
+  const nf=ME.floor+1;   // endless — ไม่มีเพดานชั้น
+  const sab=consumePendingSabotage();
+  _turnSecCur = sab.slowTimer ? 25 : TURN_SECONDS;   // ⏳ นาฬิกาทราย: ศึกนี้เทิร์นละ 25 วิ
+  // เด็คเต็ม = starter + reward − ใบที่ลบทิ้งในร้านมืด
+  const B=createBattle(ROOM.seed, nf, currentDeckList(), sab);
+  if(elite){   // Elite: เลือด ×1.5 ตี +2 — แลกรางวัล ×2 + โอกาสการ์ดตำนานสูงขึ้น
+    B.enemy.hp=Math.round(B.enemy.hp*1.5);
+    B.enemy.maxHp=B.enemy.hp;
+    B.enemy.atk+=2;
+    B._elite=true;
+  }
+  B.php=ME.hp; B.pmaxHp=ME.maxHp;
+  applyLoadout(B, MY_LOADOUT);   // stats (atk/hp/def/int/spd/mana)
+  B_startTurn(B);
+  CUR_B=B;
+  _endEnemyPhase();           // กัน flag เทิร์นศัตรูค้างจากศึกก่อน (เช่น โดนพายุตัดจบ)
+  $('bt-log').innerHTML='';   // ล้าง log ศึกก่อนหน้า
+  // คำใบ้สำหรับศึกแรกในชีวิต (โชว์ครั้งเดียว)
+  if(!localStorage.getItem('ct_pvp_hint_battle')){
+    try{ localStorage.setItem('ct_pvp_hint_battle','1'); }catch(e){}
+    btLog('💡 แตะการ์ดเพื่อเล่น — วงกลมมุมการ์ดคือมานา 💎 ที่ต้องใช้');
+    btLog('💡 ป้ายเหนือหัวศัตรูบอกว่าเทิร์นหน้ามันจะทำอะไร — วางแผนตามนั้น!');
+  }
+  // แจ้งดีบัฟที่ติดมาจากการโดนแกล้ง (ศึกนี้)
+  if(sab.web) btLog('🕸️ ใยเหนียว — เทิร์นแรกจั่วลด 2 ใบ');
+  if(sab.freeze) btLog('🧊 เยือกแข็ง — เทิร์นแรกมานา −1');
+  if(sab.slowTimer) btLog('⏳ นาฬิกาทราย — ศึกนี้เทิร์นละ 25 วิ!');
+  // ฉากตามช่วงชั้น: ถ้ำดิน → สุสาน → ภูเขาไฟ → ห้องบอส
+  const sceneEl=document.querySelector('.bt-enemy');
+  if(sceneEl) sceneEl.className='bt-enemy '+(nf>=21?'scene-boss':nf>=15?'scene-late':nf>=8?'scene-mid':'scene-early');
+  showScr('scr-battle');
+  renderBattleUI();
+  startTurnTimer();
+}
+function renderBattleUI(){
+  const B=CUR_B; if(!B)return;
+  $('bt-floor').textContent=B.floor+(B._elite?' 💀ELITE':'');
+  $('bt-turn').textContent='เทิร์น '+B.turn;
+  // enemy sprite: ใช้รูปถ้ามี (fallback เป็น emoji ถ้าโหลดไม่ขึ้น) — อัปเดตเฉพาะตอนเปลี่ยนตัว กันภาพกะพริบ
+  const sprEl=$('bt-spr');
+  const sprKey=B.enemy.img||B.enemy.spr;
+  if(sprEl.dataset.k!==sprKey){
+    sprEl.dataset.k=sprKey;
+    sprEl.textContent='';
+    if(B.enemy.img){
+      const im=document.createElement('img');
+      im.src=B.enemy.img; im.alt=B.enemy.name;
+      im.onerror=()=>{ sprEl.textContent=B.enemy.spr; };
+      sprEl.appendChild(im);
+    } else sprEl.textContent=B.enemy.spr;
+  }
+  $('bt-ename').textContent=B.enemy.name;
+  const ehpPct=Math.max(0,(B.enemy.hp/B.enemy.maxHp)*100);
+  $('bt-ehp-fill').style.width=ehpPct+'%';
+  $('bt-ehp-txt').textContent=`${B.enemy.hp}/${B.enemy.maxHp}`;
+  const intent=B_enemyIntent(B);
+  $('bt-intent').textContent=`${intent.icon} ${intent.txt}`;
+  let est=[];
+  if(B.enemy.block>0)est.push(`🛡️${B.enemy.block}`);
+  if(B.enemy.burn>0)est.push(`🔥${B.enemy.burn}`);
+  if(B.enemy.poison>0)est.push(`☠️${B.enemy.poison}`);
+  if(B.enemy._bombs&&B.enemy._bombs.length)est.push('💣'+B.enemy._bombs.map(b=>`${b.dmg}(${b.turns})`).join(','));
+  if(B.enemy.armor>0)est.push(`🪖${B.enemy.armor}`);
+  if(B.thorns>0)est.push(`🌵คุณ ${B.thorns}${B._thornsPersist?'∞':''}`);
+  if(B._grudge>0)est.push(`🗡️แค้น +${B._grudge}`);
+  $('bt-estatus').textContent=est.join('  ');
+  // player stats
+  $('bt-php').textContent=B.php;
+  $('bt-block').textContent=B.block;
+  $('bt-mana').textContent=B.mana;
+  $('bt-maxmana').textContent=B.maxMana;
+  $('bt-deck').textContent=B.deck.length;
+  $('bt-disc').textContent=B.disc.length;
+  // hand
+  const hand=$('bt-hand'); hand.innerHTML='';
+  B.hand.forEach((cid,i)=>{
+    const card=PVP_CARDS[cid];
+    const isCurse=card.curse;
+    const eCost=B_cardCost(B,card);   // ค่าร่ายจริง (บางใบมีเงื่อนไขลดค่าร่าย)
+    const playable=isCurse || eCost<=B.mana;
+    const el=document.createElement('div');
+    el.className='pxc bt-card t-'+card.type+' '+(playable?'playable':'unplayable')+(card.rarity?' r-'+card.rarity:'');
+    el.innerHTML=pxCardInner(card, isCurse?'✕':eCost);
+    if(playable) el.onclick=()=>onPlayCard(i);
+    // จัดพัดโค้ง: เอียง+ยกขอบ ตาม offset จากกึ่งกลาง / ซ้อนทับอัตโนมัติเมื่อการ์ดเยอะ
+    const nH=B.hand.length;
+    const off=i-(nH-1)/2;
+    el.style.transform=`rotate(${off*4}deg) translateY(${off*off*2.2}px)`;
+    el.style.zIndex=10+i;
+    if(i>0 && nH>1){
+      const avail=hand.clientWidth||340;
+      const step=Math.min(80,(avail-80)/(nH-1));   // 80 = กว้างการ์ด 76 + เผื่อขอบ
+      el.style.marginLeft=(step-76)+'px';
+    }
+    hand.appendChild(el);
+  });
+}
+function onPlayCard(i){
+  const B=CUR_B; if(!B||B.over||_enemyPhase)return;   // ห้ามเล่นระหว่างเทิร์นศัตรู
+  const ehpBefore=B.enemy.hp, phpBefore=B.php;
+  const res=B_playCard(B,i);
+  if(!res.ok){ if(res.reason==='mana') btLog('มานาไม่พอ'); return; }
+  if(res.log&&res.log.length) btLog(res.log.join(' · '));
+  // juice: เลขดาเมจเด้ง + ศัตรูสั่น / เลขฮีลเขียว + เสียง
+  const dealt=ehpBefore-B.enemy.hp;
+  if(dealt>0){ dmgPop('-'+dealt,'hurt'); shakeEnemy(); SFX.hit(); }
+  if(B.php>phpBefore){ dmgPop('+'+(B.php-phpBefore),'heal'); SFX.heal(); }
+  const card=PVP_CARDS[res.cid];
+  if(card && card.block && !B._noBlock && dealt<=0) SFX.block();
+  renderBattleUI();
+  if(B.over){ endFight(); }
+}
+/* เทิร์นศัตรูแบบเว้นจังหวะ: tick ดาเมจต่อเนื่อง → หยุด → ศัตรูออกท่า → หยุด → เทิร์นเรา */
+let _enemyPhase=false;
+function onEndTurn(){
+  const B=CUR_B; if(!B||B.over||_enemyPhase)return;
+  stopTurnTimer();
+  _enemyPhase=true;
+  $('bt-endturn').disabled=true;
+  // เฟส 1: ทิ้งมือ + ไฟ/พิษ/ระเบิดเวลา tick
+  const ehp0=B.enemy.hp;
+  B_endTurnTicks(B);
+  const tick=ehp0-B.enemy.hp;
+  if(tick>0){ dmgPop('-'+tick,'hurt'); shakeEnemy(); btLog(`🔥 ดาเมจต่อเนื่อง ${tick}`); }
+  renderBattleUI();
+  if(B.over){ _endEnemyPhase(); endFight(); return; }
+  // เฟส 2: ศัตรูออกท่า
+  setTimeout(()=>{
+    const B2=CUR_B;
+    if(!B2||B2.over){ _endEnemyPhase(); return; }
+    const php0=B2.php, ehp1=B2.enemy.hp;
+    const actions=B_enemyAct(B2);
+    actions.forEach(a=>{
+      if(a.type==='atk'||a.type==='heavy'||a.type==='multi'||a.type==='rage'){
+        const label={heavy:'💥 ชาร์จใส่',multi:'🌀 ตีรัว',rage:'😡 โกรธจัดตี'}[a.type]||'โจมตี';
+        btLog(`${B2.enemy.name} ${label} ${a.dmg}!`); enemyLunge();
+      }
+      if(a.type==='def') btLog(`${B2.enemy.name} ตั้งรับ +${a.block}`);
+      if(a.type==='heal') btLog(`${B2.enemy.name} ฟื้นเลือด ${a.amt}!`);
+      if(a.type==='buff') btLog(`🔺 ${B2.enemy.name} สะสมพลัง! (+${a.amt} ATK)`);
+      if(a.type==='thorns') btLog(`🌵 หนามสะท้อน ${a.dmg} ใส่ ${B2.enemy.name}!`);
+    });
+    if(B2.php<php0){ flashPlayerHurt(); dmgPopPlayer('-'+(php0-B2.php)); SFX.hurt(); }
+    if(B2.enemy.hp<ehp1){ dmgPop('-'+(ehp1-B2.enemy.hp),'hurt'); shakeEnemy(); }   // โดนหนามสะท้อน
+    if(B2.enemy.hp>ehp1){ dmgPop('+'+(B2.enemy.hp-ehp1),'heal'); }                 // ศัตรูฮีล
+    renderBattleUI();
+    if(B2.over){ _endEnemyPhase(); endFight(); return; }
+    // เฟส 3: ขึ้นเทิร์นใหม่ของเรา
+    pushBattleHp(B2);   // เลือดสดขึ้น scoreboard เพื่อนทุกเทิร์น
+    setTimeout(()=>{
+      const B3=CUR_B;
+      if(!B3||B3.over){ _endEnemyPhase(); return; }
+      B3.turn++;
+      B_startTurn(B3);
+      renderBattleUI();
+      _endEnemyPhase();
+      startTurnTimer();
+    }, 700);
+  }, 650);
+}
+function _endEnemyPhase(){
+  _enemyPhase=false;
+  const b=$('bt-endturn'); if(b) b.disabled=false;
+}
+function btLog(txt){
+  // log สะสมเป็นประวัติ scroll ได้ (เดิมทับทิ้งเหลือบรรทัดเดียว มองไม่ทันตอนเหตุการณ์รัว)
+  const el=$('bt-log');
+  const d=document.createElement('div');
+  d.textContent=txt;
+  el.appendChild(d);
+  while(el.children.length>30) el.removeChild(el.firstChild);
+  el.scrollTop=el.scrollHeight;
+}
+/* ===== Battle juice: เลขดาเมจเด้ง + ตัวสั่น ===== */
+function dmgPop(txt, cls){
+  const host=document.querySelector('.bt-enemy'); if(!host)return;
+  const s=document.createElement('span');
+  s.className='dmg-pop '+cls;
+  s.textContent=txt;
+  host.appendChild(s);
+  setTimeout(()=>s.remove(),850);
+}
+function shakeEnemy(){
+  const spr=$('bt-spr'); if(!spr)return;
+  spr.classList.remove('hit'); void spr.offsetWidth;   // restart animation
+  spr.classList.add('hit');
+}
+function flashPlayerHurt(){
+  const el=document.querySelector('.bt-pstats'); if(!el)return;
+  el.classList.remove('hurt'); void el.offsetWidth;
+  el.classList.add('hurt');
+  if(navigator.vibrate) navigator.vibrate(60);
+}
+function dmgPopPlayer(txt){
+  const host=document.querySelector('.bt-pstats'); if(!host)return;
+  const s=document.createElement('span');
+  s.className='dmg-pop hurt';
+  s.textContent=txt;
+  host.appendChild(s);
+  setTimeout(()=>s.remove(),850);
+}
+function enemyLunge(){
+  const spr=$('bt-spr'); if(!spr)return;
+  spr.classList.remove('lunge'); void spr.offsetWidth;
+  spr.classList.add('lunge');
+}
+function burstConfetti(){
+  const box=document.createElement('div');
+  box.className='confetti-box';
+  const colors=['#ffd873','#b892ff','#5db0ff','#ff7088','#5dcaa5'];
+  for(let i=0;i<60;i++){
+    const c=document.createElement('i');
+    c.style.left=(Math.random()*100)+'%';
+    c.style.background=colors[i%colors.length];
+    c.style.animationDelay=(Math.random()*1.6)+'s';
+    c.style.animationDuration=(2.2+Math.random()*2)+'s';
+    box.appendChild(c);
+  }
+  document.body.appendChild(box);
+  setTimeout(()=>box.remove(), 6500);
+}
+function endFight(){
+  const B=CUR_B; if(!B)return;
+  stopTurnTimer();
+  const wasElite=B._elite, wasBoss=B.enemy.isBoss;
+  // carry HP back to race state
+  ME.hp=Math.max(0,B.php);
+  if(B.won){
+    ME.floor++;
+    ME.maxFloor=Math.max(ME.maxFloor||0, ME.floor);   // ชั้นสูงสุด (ใช้ตัดสิน furthest-wins)
+    if(hasBoon('bloodthirst')) ME.hp=Math.min(ME.maxHp, ME.hp+12);   // boon กระหายเลือด
+    // === Gold (แบบ B: คนตามหลังได้มากกว่า) ===
+    const base=12;
+    const behind=Math.max(0, leaderFloor()-ME.floor);  // ตามหลังคนนำกี่ชั้น
+    const catchupBonus=behind*4;                          // ยิ่งตามหลังยิ่งได้เยอะ
+    const speedBonus=B.turn<=4?6:0;                       // ชนะไว (≤4 เทิร์น) — ให้ tempo มีค่า
+    let gain=base+catchupBonus+speedBonus;
+    if(hasBoon('merchant')) gain+=5;                      // boon นักค้า
+    if(B._elite) gain*=2;                                 // Elite: รางวัล ×2
+    ME.gold=(ME.gold||0)+gain;
+    ME._lastElite=!!B._elite;                             // ส่งต่อให้จอ reward (เพิ่มโอกาสการ์ดตำนาน)
+    SFX.win();
+    btLog(`🎉 ชนะ! ขึ้นชั้น ${ME.floor} · +${gain} เครดิต${B._elite?' 💀Elite ×2!':''}${catchupBonus>0?' (โบนัสไล่ตาม)':''}${speedBonus>0?' ⚡ชนะไว!':''}`);
+    // live feed: เหตุการณ์เด่น (ล้มบอส / Elite / ทุก 5 ชั้น) กันสแปม
+    if(wasBoss) feedPost(`🏆 ${ME.name} ล้มบอส "${B.enemy.name}" ที่ชั้น ${ME.floor}!`);
+    else if(B._elite) feedPost(`💀 ${ME.name} ล้ม Elite ชั้น ${ME.floor}!`);
+    else if(ME.floor%5===0) feedPost(`🗼 ${ME.name} ไต่ถึงชั้น ${ME.floor} แล้ว!`);
+  } else {
+    SFX.lose();
+    btLog('💀 แพ้...');
+    if(ME.hp<=0) feedPost(`💀 ${ME.name} ร่วงที่ชั้น ${ME.floor+1} (สูงสุด ${ME.maxFloor||0})`);
+  }
+  pushMyState();
+  // โหมดซ้อม: เราตาย = ตัดสินผลกับบอททันที (กติกา furthest-wins เหมือนแข่งจริง)
+  if(PRACTICE){
+    if(!B.won && ME.hp<=0){ setTimeout(()=>{ CUR_B=null; practiceCheckEnd(); }, 1100); return; }
+  }
+  if(B.won){
+    // ชนะ = ไต่ต่อ: ล้มบอสได้เลือกพร, ชั้นปกติเลือกการ์ด (endless — ไม่มีเพดาน)
+    setTimeout(()=>{
+      CUR_B=null;
+      // พร: บอส→หายาก★ การันตี, ทุก 5 ชั้น→พรใดก็ได้ แล้วค่อยเลือกการ์ด
+      const boonTier = wasBoss ? 'rare' : (ME.floor%5===0 ? 'any' : null);
+      if(boonTier){
+        const rc=boonChoices(mulberryFrom((ROOM.seed||1)*202949 + ME.floor*97), boonTier, 3);
+        openBoonPicker(rc, (wasBoss?'🏆 พิชิตบอส — พรหายาก ★':'✨ ผ่านชั้น '+ME.floor+' — เลือกพร')+' 1', ()=>showCardReward());
+      } else showCardReward();
+    }, 900);
+  } else {
+    setTimeout(()=>{
+      CUR_B=null;
+      showScr('scr-race');
+      updateNextFloorUI();
+      renderRace();
+    }, 1100);
+  }
+}
+
+/* ===== Card reward after each win — สุ่มสีละใบ (กาย/เวท/ป้องกัน) ===== */
+const REWARD_POOLS={
+  attack:  ['jab','flurry','bash','vampire','allin','reckless','heavy',
+            'grudge','finisher','snakefang','coinflip','execute'],          // กายภาพ (+การ์ดกลไกใหม่)
+  magic:   ['poisondart','ignite','drain','fireball','venomburst','timebomb'], // เวท
+  defense: ['thorns','bulwark','ironwall','guard'],                         // ป้องกัน
+};
+const LEGENDARY_CARDS=['dragonheart','thornking'];   // โผล่เป็นช่องพิเศษ ~15% ต่อ reward
+function pickFromPool(pool, rng){ return pool[Math.floor(rng()*pool.length)]; }
+function showCardReward(){
+  _rewardPicking=false;   // รีเซ็ตกันกดซ้ำ สำหรับ reward ใหม่
+  // สุ่มสีละ 2 ใบ (รวม 6) → เลือก 1 ใบ — มีให้เลือกครบทุกสายและหลากหลายขึ้น
+  const rng=mulberryFrom((ROOM.seed||1)*5077 + ME.floor*331 + (ME.id?ME.id.length*97:0));
+  function pick2(pool, cat){
+    const a=pickFromPool(pool, rng);
+    let b=pickFromPool(pool, rng);
+    let guard=0;
+    while(b===a && pool.length>1 && guard<10){ b=pickFromPool(pool, rng); guard++; }
+    return [{cid:a,cat},{cid:b,cat}];
+  }
+  const opts=[
+    ...pick2(REWARD_POOLS.attack,  '⚔️ กายภาพ'),
+    ...pick2(REWARD_POOLS.magic,   '🔮 เวทมนตร์'),
+    ...pick2(REWARD_POOLS.defense, '🛡️ ป้องกัน'),
+  ];
+  // ช่องการ์ดตำนานพิเศษ: ปกติ ~15% / ชนะ Elite มา ~35% (จาก seed — โอกาสที่เสนอแฟร์เท่ากันทุกคน)
+  const lgChance=ME._lastElite?0.35:0.15;
+  ME._lastElite=false;
+  if(rng()<lgChance){
+    const lg=LEGENDARY_CARDS[Math.floor(rng()*LEGENDARY_CARDS.length)];
+    opts.push({cid:lg, cat:'🌟 ตำนาน!'});
+    SFX.legend();
+    toast('🌟 การ์ดตำนานปรากฏ!');
+  }
+  const box=$('reward-cards'); box.innerHTML='';
+  opts.forEach(o=>{
+    const el=pxCardEl(PVP_CARDS[o.cid], false);
+    el.onclick=()=>pickRewardCard(o.cid);
+    box.appendChild(el);
+  });
+  $('reward-floor').textContent=ME.floor;
+  showScr('scr-reward');
+}
+let _rewardPicking=false;
+function pickRewardCard(cid){
+  if(_rewardPicking) return;        // กันกดซ้ำ
+  _rewardPicking=true;
+  if(!MY_LOADOUT.deck) MY_LOADOUT.deck=[];
+  MY_LOADOUT.deck.push(cid);
+  persistLoadout();
+  if(PVP_CARDS[cid].rarity==='legendary') feedPost(`🌟 ${ME.name} คว้าการ์ดตำนาน "${PVP_CARDS[cid].name}"!`);
+  toast(`+ ${PVP_CARDS[cid].name} เข้าเด็ค!`);
+  showScr('scr-race');
+  updateNextFloorUI();
+  renderRace();
+}
+function skipRewardCard(){
+  if(_rewardPicking) return;
+  _rewardPicking=true;
+  showScr('scr-race');
+  updateNextFloorUI();
+  renderRace();
+}
+
+// push เฉพาะเลือดระหว่างอยู่ในศึก — ให้ scoreboard คนอื่นเห็นสด ไม่ต้องรอจบไฟต์
+function pushBattleHp(B){
+  if(!ROOM.ref || ROOM._finished || !B)return;
+  ROOM.ref.child('players/'+ME.id).update({
+    hp:Math.max(0,B.php),
+    lastHeartbeat:firebase.database.ServerValue.TIMESTAMP
+  });
+}
+function pushMyState(){
+  if(!ROOM.ref || ROOM._finished)return;
+  ROOM.ref.child('players/'+ME.id).update({
+    floor:ME.floor, maxFloor:ME.maxFloor||ME.floor||0, hp:ME.hp, maxHp:ME.maxHp, gold:ME.gold||0,
+    lastHeartbeat:firebase.database.ServerValue.TIMESTAMP
+  });
+  renderRace();
+}
+
+/* ========== HEARTBEAT ========== */
+function startHeartbeat(){
+  stopHeartbeat();
+  _hbTimer=setInterval(()=>{
+    if(ROOM.ref) ROOM.ref.child('players/'+ME.id+'/lastHeartbeat')
+      .set(firebase.database.ServerValue.TIMESTAMP);
+  },5000);
+}
+function stopHeartbeat(){ if(_hbTimer){clearInterval(_hbTimer);_hbTimer=null;} }
+// กลับมาที่แท็บ = ยิง heartbeat ทันที (timer โดน throttle ตอนอยู่เบื้องหลัง)
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden && ROOM.ref && !ROOM._finished)
+    ROOM.ref.child('players/'+ME.id+'/lastHeartbeat').set(firebase.database.ServerValue.TIMESTAMP);
+});
+
+/* ========== LEAVE ========== */
+function leaveRoom(){
+  if(ROOM.ref){
+    ROOM.ref.child('players/'+ME.id).remove();
+    // if host and empty, remove room
+    ROOM.ref.child('players').get().then(snap=>{
+      const p=snap.val()||{};
+      if(Object.keys(p).length===0) ROOM.ref.remove();
+    }).catch(()=>{});
+    ROOM.ref.off('value',_roomListener); _roomListener=null;
+    if(_sabListenerRef){ _sabListenerRef.off('child_added'); _sabListenerRef=null; }
+    if(_feedRef){ _feedRef.off('child_added'); _feedRef=null; }
+  }
+  stopHeartbeat();
+  leaveToHome();
+}
+function leaveToHome(){
+  stopVoidStorm();
+  stopTurnTimer();
+  stopPracticeBots();
+  PRACTICE_BOTS=[];
+  PRACTICE=false;
+  if(_roomCleanupTimer){ clearTimeout(_roomCleanupTimer); _roomCleanupTimer=null; }
+  ROOM={ code:null, ref:null, seed:null, isHost:false };
+  RIVALS=[]; ALL_PLAYERS={};
+  ME.floor=0; ME.maxFloor=0; ME.hp=100; ME.ready=false; ME._restedFloor=0; ME._ghostToast=false;
+  showScr('scr-home');
+}
+
+/* ========== WIRE ========== */
+$('btn-create').onclick=createRoom;
+$('btn-join').onclick=joinRoom;
+$('btn-ready').onclick=toggleReady;
+$('btn-start-game').onclick=hostStartGame;
+$('btn-leave-lobby').onclick=leaveRoom;
+$('btn-leave-race').onclick=leaveRoom;
+$('btn-fight').onclick=()=>startFight(false);
+$('btn-elite').onclick=()=>startFight(true);
+$('btn-rest').onclick=restHere;
+$('rest-rest').onclick=chooseRestHeal;
+$('rest-upgrade').onclick=chooseRestUpgrade;
+$('rest-skip').onclick=()=>{ ME._restedFloor=ME.floor+1; $('rest-modal').classList.remove('open'); updateNextFloorUI(); };
+$('upgrade-cancel').onclick=()=>{ $('upgrade-modal').classList.remove('open'); };
+$('upgrade-modal').addEventListener('click',e=>{ if(e.target.id==='upgrade-modal')$('upgrade-modal').classList.remove('open'); });
+$('btn-practice').onclick=openPracticeDiff;
+$('practice-cancel').onclick=()=>$('practice-modal').classList.remove('open');
+$('practice-modal').addEventListener('click',e=>{ if(e.target.id==='practice-modal')$('practice-modal').classList.remove('open'); });
+document.querySelectorAll('#practice-modal .relic-opt').forEach(el=>{
+  el.onclick=()=>{ $('practice-modal').classList.remove('open'); startPractice(el.dataset.diff); };
+});
+$('btn-sfx').onclick=toggleSfx;
+$('btn-sfx').textContent=_sfxOn?'🔊':'🔇';
+$('btn-darkmarket').onclick=openDarkMarket;
+$('reward-skip').onclick=skipRewardCard;
+$('dm-close').onclick=()=>$('dm-modal').classList.remove('open');
+$('dm-modal').addEventListener('click',e=>{ if(e.target.id==='dm-modal')$('dm-modal').classList.remove('open'); });
+$('btn-bag').onclick=openBag;
+$('bag-close').onclick=()=>$('bag-modal').classList.remove('open');
+$('bag-modal').addEventListener('click',e=>{ if(e.target.id==='bag-modal')$('bag-modal').classList.remove('open'); });
+$('bt-endturn').onclick=onEndTurn;
+$('draft-next').onclick=draftNext;
+$('btn-stat-info').onclick=showStatInfo;
+$('stat-info-close').onclick=()=>$('stat-info-modal').classList.remove('open');
+$('stat-info-modal').addEventListener('click',e=>{ if(e.target.id==='stat-info-modal')$('stat-info-modal').classList.remove('open'); });
+$('btn-rematch').onclick=()=>{ if(ROOM.isHost) hostRematch(); };
+$('btn-exit-room').onclick=()=>{ leaveRoom(); };
+
+/* ===== My deck viewer (+โหมดลบการ์ด 50💳 จากร้านมืด) ===== */
+const CARD_REMOVE_COST=50, DECK_MIN_SIZE=8;
+let _deckRemoveMode=false;
+function openDeckView(removeMode){
+  _deckRemoveMode=!!removeMode;
+  renderDeckView();
+  $('deck-modal').classList.add('open');
+}
+function renderDeckView(){
+  const inBattle=CUR_B && !CUR_B.over && $('scr-battle').classList.contains('active');
+  // ระหว่างสู้โชว์องค์ประกอบสด (จั่ว+มือ+ทิ้ง ไม่รวมใบที่สลาย) นอกศึกโชว์เด็คถาวร
+  const list=(inBattle && !_deckRemoveMode)
+    ? CUR_B.deck.concat(CUR_B.hand, CUR_B.disc)
+    : currentDeckList();
+  $('deck-count').textContent=list.length;
+  $('deck-msg').textContent=_deckRemoveMode
+    ? `🗑️ แตะการ์ดที่จะลบทิ้งถาวร — ใบละ ${CARD_REMOVE_COST}💳 (คุณมี ${ME.gold||0}💳)`
+    : (inBattle?'องค์ประกอบเด็คในศึกนี้':'');
+  const counts={};
+  list.forEach(c=>counts[c]=(counts[c]||0)+1);
+  const R_ORDER={legendary:0,rare:1,uncommon:2,common:3};
+  const ids=Object.keys(counts).sort((a,b)=>{
+    const A=PVP_CARDS[a],Bc=PVP_CARDS[b];
+    return A.type.localeCompare(Bc.type)
+      || (R_ORDER[A.rarity||'common']-R_ORDER[Bc.rarity||'common'])
+      || (A.cost-Bc.cost);
+  });
+  const box=$('deck-body');
+  box.innerHTML='';
+  ids.forEach(cid=>{
+    const c=PVP_CARDS[cid];
+    const el=document.createElement('div');
+    el.className='cl-row'+(c.rarity&&c.rarity!=='common'?' r-'+c.rarity:'');
+    el.innerHTML=`${c.ico?`<img class="cl-art" src="${c.ico}" alt="">`:''}
+      <div><div class="cl-name">${counts[cid]}× ${c.name} <span class="cl-cost">💎${c.curse?'—':c.cost}</span></div>
+      <div class="cl-desc">${c.desc}</div></div>
+      ${_deckRemoveMode?'<span class="di-cost">🗑️</span>':''}`;
+    if(_deckRemoveMode){ el.style.cursor='pointer'; el.onclick=()=>removeCardFromDeck(cid); }
+    box.appendChild(el);
+  });
+}
+function removeCardFromDeck(cid){
+  if((ME.gold||0)<CARD_REMOVE_COST){ $('deck-msg').textContent='💳 เครดิตไม่พอ (ต้องใช้ '+CARD_REMOVE_COST+')'; return; }
+  if(currentDeckList().length<=DECK_MIN_SIZE){ $('deck-msg').textContent='เด็คต้องมีอย่างน้อย '+DECK_MIN_SIZE+' ใบ — ลบเพิ่มไม่ได้แล้ว'; return; }
+  ME.gold-=CARD_REMOVE_COST;
+  MY_LOADOUT.removed=(MY_LOADOUT.removed||[]);
+  MY_LOADOUT.removed.push(cid);
+  persistLoadout();
+  pushMyState();
+  toast(`🗑️ ลบ ${PVP_CARDS[cid].name} ออกจากเด็คถาวร (−${CARD_REMOVE_COST}💳)`);
+  renderDeckView();
+}
+
+/* ===== BOONS — พร (รวม stat+relic) จั่วสุ่มจาก seed ===== */
+let _boonOnPick=null;
+const BOON_CATCOL={atk:'#ff5a3c',int:'#b060ff',def:'#3ca0ff',tempo:'#4ad07a',sustain:'#e0489a'};
+const BOON_TIERMARK={common:'◆',uncommon:'◆◆',rare:'★'};
+function myBoons(){ return MY_LOADOUT.boons||(MY_LOADOUT.boons=[]); }
+function hasBoon(id){ return myBoons().includes(id); }
+// สุ่มตัวเลือกพรแบบ deterministic (mirror แฟร์) เว้นตัวที่มีแล้ว — tier: 'rare' / 'start' / 'any'
+function boonChoices(saltRng, tier, count){
+  const owned=myBoons();
+  let pool=PVP_BOONS.filter(b=>!owned.includes(b.id));
+  if(tier==='rare') pool=pool.filter(b=>b.tier==='rare');
+  else if(tier==='start') pool=pool.filter(b=>b.tier!=='rare');   // เริ่มเกม: พื้น+กลาง (ยังไม่ให้ rare)
+  // 'any' = ทุก tier
+  let a=shuffleSeeded(pool, saltRng);
+  if(a.length<count){   // pool tier นั้นหมด → เติมจากที่เหลือ
+    const extra=shuffleSeeded(PVP_BOONS.filter(b=>!owned.includes(b.id)&&!a.includes(b)), saltRng);
+    a=a.concat(extra);
+  }
+  return a.slice(0, Math.min(count, a.length));
+}
+function openBoonPicker(choices, subtitle, onPick){
+  if(!choices || !choices.length){ if(onPick)onPick(); return; }
+  _boonOnPick=onPick;
+  $('relic-sub').textContent=subtitle||'เลือกพร 1 — ชุดสุ่มจาก seed';
+  const box=$('relic-list'); box.innerHTML='';
+  choices.forEach(b=>{
+    const col=BOON_CATCOL[b.cat]||'#888';
+    const el=document.createElement('div');
+    el.className='relic-opt boon-opt';
+    el.style.borderColor=col;
+    if(b.tier==='rare') el.style.boxShadow='0 0 14px '+col+'66';
+    el.innerHTML=`<span class="r-ic">${b.ic}</span>
+      <div style="flex:1"><div class="r-nm">${b.name} <span style="font-size:.82em;color:${col}">${BOON_TIERMARK[b.tier]}</span></div>
+      <div class="r-ds">${b.desc}</div></div>`;
+    el.onclick=()=>pickBoon(b.id);
+    box.appendChild(el);
+  });
+  $('relic-modal').classList.add('open');
+}
+function pickBoon(id){
+  if(!hasBoon(id)) myBoons().push(id);
+  const b=PVP_BOON_BY_ID[id];
+  // ผลนอกศึก: HP สูงสุด (Vigor +20/ฟื้น, Berserker −12)
+  if(id==='vigor'){ ME.maxHp+=20; ME.hp=Math.min(ME.maxHp, ME.hp+20); }
+  if(id==='berserker'){ ME.maxHp=Math.max(1,ME.maxHp-12); ME.hp=Math.min(ME.hp, ME.maxHp); }
+  persistLoadout();
+  SFX.legend();
+  toast(`✨ รับพร "${b.ic} ${b.name}"`);
+  if(!PRACTICE){ feedPost(`✨ ${ME.name} ได้พร ${b.ic}${b.name}`); pushMyState(); }
+  $('relic-modal').classList.remove('open');
+  const cb=_boonOnPick; _boonOnPick=null;
+  if(cb) cb();
+}
+function renderMyBoons(){
+  const strip=$('relic-strip'); if(!strip)return;
+  strip.innerHTML=myBoons().map(id=>{const b=PVP_BOON_BY_ID[id];if(!b)return '';
+    return `<span class="rchip" style="border-color:${BOON_CATCOL[b.cat]||'#6a3a9a'}" title="${b.name}: ${b.desc}">${b.ic}</span>`;}).join('');
+}
+
+/* ===== Card library (สร้างจาก PVP_CARDS — เพิ่มการ์ดใหม่แล้วอัปเดตเอง) ===== */
+const STATUS_GLOSSARY=[
+  ['💎','มานา — ค่าใช้เล่นการ์ด ได้เต็มใหม่ทุกเทิร์น'],
+  ['🛡️','บล็อก — กันดาเมจ แต่หายตอนจบเทิร์น (ยกเว้น Bulwark ค้างได้ 1 เทิร์น)'],
+  ['🔥','ไฟ — ศัตรูโดนดาเมจทุกเทิร์น ลดทีละ 1 จนหมด'],
+  ['☠️','พิษ — เหมือนไฟ และจุดระเบิดได้ด้วยการ์ด "พิษระเบิด"'],
+  ['💣','ระเบิดเวลา — ครบกำหนดระเบิดใส่ HP ตรงๆ ข้ามเกราะ/บล็อก (เลขในวงเล็บ = อีกกี่เทิร์น)'],
+  ['🌵','หนาม — สะท้อนดาเมจใส่ศัตรูที่ตีเรา หมดอายุทุกเทิร์น (ราชันย์หนาม = ถาวร ∞)'],
+  ['🪖','เกราะศัตรู — ลดดาเมจที่เราตีเข้าทุกครั้ง'],
+  ['🔊','Echo — การ์ดโจมตี/เวทใบถัดไปแรง ×2'],
+  ['🩸','ดูดเลือด — ฟื้น HP เท่าดาเมจที่ตีเข้าจริง'],
+  ['😡','โกรธ — ศัตรูบางตัว (Mimic/บอส) ยิ่งโดนตียิ่งตีแรงขึ้น'],
+  ['📚 🗑️','กองจั่ว / กองทิ้ง — จั่วจนหมดกองแล้วกองทิ้งจะถูกสับกลับมาใหม่'],
+  ['🗡️','แค้นสะสม — โบนัสดาเมจถาวรของ "ดาบสะสมแค้น" ในศึกนี้'],
+  ['1×','สลายหลังใช้ — การ์ดหายไปทันทีที่เล่น ไม่วนกลับมาอีกจนจบศึก (การ์ดตำนานผลถาวรเป็นแบบนี้ทุกใบ)'],
+];
+const TYPE_LABELS={
+  attack:'⚔️ โจมตีกายภาพ — แรงขึ้นตามแต้ม ATK',
+  magic:'🔮 เวทมนตร์ — แรงขึ้นตามแต้ม INT',
+  defense:'🛡️ ป้องกัน',
+  skill:'✨ สกิล',
+  curse:'💫 คำสาป — ได้จากโดนแกล้ง เล่นทิ้งได้แต่ไม่มีผล',
+};
+function renderCardLib(){
+  const box=$('cardlib-body');
+  const R_ORDER={legendary:0,rare:1,uncommon:2,common:3};
+  const R_TAG={legendary:'🌟 ตำนาน',rare:'⭐ แรร์',uncommon:'✦ พิเศษ'};
+  let html='<div class="ht-sec"><h3>📖 ไอคอนสถานะในเกม</h3>';
+  STATUS_GLOSSARY.forEach(g=>{ html+=`<div class="cl-glos"><span class="cl-gi">${g[0]}</span><span>${g[1]}</span></div>`; });
+  html+='</div>';
+  ['attack','magic','defense','skill','curse'].forEach(tp=>{
+    const cards=Object.values(PVP_CARDS).filter(c=>c.type===tp && !c.upgradedFrom)
+      .sort((a,b)=>(R_ORDER[a.rarity||'common']-R_ORDER[b.rarity||'common'])||(a.cost-b.cost));
+    if(!cards.length)return;
+    html+=`<div class="ht-sec"><h3>${TYPE_LABELS[tp]}</h3>`;
+    cards.forEach(c=>{
+      html+=`<div class="cl-row${c.rarity&&c.rarity!=='common'?' r-'+c.rarity:''}">
+        ${c.ico?`<img class="cl-art" src="${c.ico}" alt="">`:''}
+        <div>
+          <div class="cl-name">${c.name} <span class="cl-cost">💎${c.curse?'—':c.cost}</span>${R_TAG[c.rarity]?` <span class="cl-rar">${R_TAG[c.rarity]}</span>`:''}</div>
+          <div class="cl-desc">${c.desc}</div>
+        </div></div>`;
+    });
+    html+='</div>';
+  });
+  box.innerHTML=html;
+}
+function openCardLib(){ renderCardLib(); $('cardlib-modal').classList.add('open'); }
+
+/* ===== How to play ===== */
+function openHowto(){ $('howto-modal').classList.add('open'); }
+function closeHowto(){
+  $('howto-modal').classList.remove('open');
+  try{ localStorage.setItem('ct_pvp_seen_howto','1'); }catch(e){}
+}
+$('btn-howto').onclick=openHowto;
+$('btn-howto-race').onclick=openHowto;
+$('howto-close').onclick=closeHowto;
+$('howto-modal').addEventListener('click',e=>{ if(e.target.id==='howto-modal')closeHowto(); });
+$('btn-cardlib').onclick=openCardLib;
+$('btn-cardlib-race').onclick=openCardLib;
+$('cardlib-close').onclick=()=>$('cardlib-modal').classList.remove('open');
+$('cardlib-modal').addEventListener('click',e=>{ if(e.target.id==='cardlib-modal')$('cardlib-modal').classList.remove('open'); });
+$('btn-mydeck').onclick=()=>openDeckView(false);
+$('bt-deckchip').onclick=()=>openDeckView(false);
+$('deck-close').onclick=()=>$('deck-modal').classList.remove('open');
+$('deck-modal').addEventListener('click',e=>{ if(e.target.id==='deck-modal')$('deck-modal').classList.remove('open'); });
+// มือใหม่เปิดเกมครั้งแรก — โชว์วิธีเล่นให้เองเลย
+if(!localStorage.getItem('ct_pvp_seen_howto')) openHowto();
+
+// prefill saved name + โหลดสถิติถาวร
+const savedName=localStorage.getItem('ct_pvp_name')||'';
+$('name-create').value=savedName;
+$('name-join').value=savedName;
+loadMyProfile();
+renderHomeStats();   // โชว์การ์ดโปรไฟล์ทันที (มือใหม่เห็นคำชวนซ้อม ระหว่างรอโหลดสถิติ)
+
+/* มอนสเตอร์แอบเดินผ่านหน้าแรก — สุ่มตัว/ทิศ/ความเร็ว */
+const HOME_WALKERS=['slime','wolf','imp','bat','spider','mimic','harpy','troll','cactus'];
+function homeWalker(){
+  const w=$('home-walker');
+  if(!w || !$('scr-home').classList.contains('active')) return;
+  const dir=Math.random()<0.5;
+  const dur=(8+Math.random()*6).toFixed(1);
+  w.src='assets/enemies/'+HOME_WALKERS[Math.floor(Math.random()*HOME_WALKERS.length)]+'.png';
+  w.style.animation='none'; void w.offsetWidth;   // restart animation
+  w.style.transform=dir?'scaleX(-1)':'none';
+  w.style.animation=(dir?'walkR':'walkL')+' '+dur+'s linear forwards';
+}
+setInterval(homeWalker, 12000);
+homeWalker();
+$('room-join').addEventListener('input',e=>{ e.target.value=e.target.value.toUpperCase(); });
+
+// clean up on tab close
+window.addEventListener('beforeunload',()=>{
+  if(ROOM.ref) ROOM.ref.child('players/'+ME.id).remove();
+});
+</script>
+</body>
+</html>
